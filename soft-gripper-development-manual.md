@@ -32,6 +32,7 @@ This document is for **integrators** and explains SDK installation, interface us
   - [Exceptions and error handling](#exceptions-and-error-handling)
   - [Motion tuning (MotionConfig)](#motion-tuning-motionconfig)
   - [Teleoperation (leader/follower)](#teleoperation-leaderfollower)
+  - [Trajectory record and replay](#trajectory-record-and-replay)
   - [Driving the bus directly (litegrip.can)](#driving-the-bus-directly-litegripcan)
   - [Core API quick reference](#core-api-quick-reference)
 - [Secondary development](#secondary-development)
@@ -179,7 +180,7 @@ You must use the risk assessment to judge whether the hazards concerned constitu
 
 ## Overview
 
-The LiteGrip Python SDK is the `litegrip` package. It wraps the Damiao **DM-J4310-2EC** motor MIT protocol and provides interfaces for connecting, enabling, motion, grasping, manual guidance, calibration, teleoperation, and reading state.
+The LiteGrip Python SDK is the `litegrip` package. It wraps the Damiao **DM-J4310-2EC** motor MIT protocol and provides interfaces for connecting, enabling, motion, grasping, manual guidance, calibration, teleoperation, trajectory record and replay, and reading state.
 
 **The SDK has exactly two jobs: convert millimeters to motor angle and newtons to feedforward torque, then send MIT frames onto the bus at a fixed period.** It does not check for out-of-range targets, does not latch faults, and does not verify force calibration.
 
@@ -215,6 +216,8 @@ The LiteGrip Python SDK is the `litegrip` package. It wraps the Damiao **DM-J431
 | `litegrip.constants` | `GripperParams`, `UnitConversion`, `ErrorCode`, `DefaultParams`, `describe_error` |
 | `litegrip.exceptions` | Six fault classes plus the base class |
 | `litegrip.teleop` | `GripperTeleop` and the transports |
+| `litegrip.trajectory` | `Trajectory`, `TrajectoryRecorder`, `TrajectoryPlayer` — a hand-taught motion, captured and replayed |
+| `litegrip.zenoh_link` | The zenoh transport for teleoperation. Imported lazily; needs `pip install 'litegrip[zenoh]'` |
 | `litegrip.can` | Raw SocketCAN transport and the DM motor codec, for multi-motor rigs |
 
 ## Library dependencies
@@ -774,6 +777,8 @@ The scale is computed as `rad_to_mm = stroke used for calibration (mm) ÷ measur
 | `load_calibration` / `save_calibration` / `load_template` | — | — | — | Pure file I/O |
 | `read_param` | ● | — | — | |
 | `teleop_start` | ● | ● | **●** | Calls `check_ready(config)`; see [Teleoperation](#teleoperation-leaderfollower) |
+| `record` / `record_start` / `play` / `play_start` | ● | ● | **●** | Raise `TrajectoryError` while uncalibrated — the normalised opening would be a guess; see [Trajectory record and replay](#trajectory-record-and-replay) |
+| `record_stop` / `play_stop` / `trajectory_status` | — | — | — | They act on an already-running session and check nothing |
 
 **Legend**: ● = required; — = not needed.
 
@@ -788,12 +793,14 @@ The scale is computed as `rad_to_mm = stroke used for calibration (mm) ÷ measur
 | `LiteGripError` | Base class; carries `message` and an optional `error_code` |
 | `CommError` | CAN bus read or write failure |
 | `ConnectError` | CAN interface unavailable, or the motor does not respond |
-| `CommandError` | The motor refused a command, or a parameter is out of range |
+| `CommandError` | A high-level action ran on an uncalibrated or zero-travel gripper, a command frame could not be sent, or `load_calibration()` was given a bad template or both `path` and `template` |
 | `CANTimeoutError` | No response on the bus |
 | `HardwareError` | Damiao fault codes: undervoltage, overcurrent, overtemperature |
 | `NotInitializedError` | A method that requires connected/enabled was called without it |
 
-**Teleoperation adds four more**, defined in `litegrip.teleop` and also derived from `LiteGripError`: `TeleopError`, `TeleopBusyError` (started while already running), `TeleopNotActiveError` (an operation needs an active session), and `TeleopNotReady` (the gripper cannot safely be teleoperated yet). **That is 11 classes in total.**
+**Teleoperation adds four more**, defined in `litegrip.teleop` and also derived from `LiteGripError`: `TeleopError`, `TeleopBusyError` (started while already running), `TeleopNotActiveError` (an operation needs an active session), and `TeleopNotReady` (the gripper cannot safely be teleoperated yet).
+
+**Trajectory record and replay adds six**, defined in `litegrip.trajectory`: `TrajectoryError`, `TrajectoryBusyError`, `TrajectoryNotActiveError`, `TrajectoryEmptyError`, `TrajectoryRecordingError` and `TrajectoryFormatError`. **That is 17 classes in total**, all derived from `LiteGripError` — see [Python exception types](#python-exception-types) for the full table.
 
 ```python
 from litegrip import (
@@ -816,7 +823,7 @@ except LiteGripError as e:
 
 > **Note**: **Clamping and force skipping raise nothing.** A target outside the stroke is silently clamped, an out-of-range `kp` / `kd` / `tau` is silently saturated, and an unvalidated `force_n` is sent as usual. **A program that only catches exceptions will not notice any of them.**
 >
-> **Note**: **`CommandError` is defined but rarely raised in practice** — the motor refusing a command is not currently routed to it.
+> **Note**: **`CommandError` is the calibration guard, not a general command error.** It is raised by the actions layer when the configuration is uncalibrated or has zero travel, when a command frame cannot be sent, and by `load_calibration()` for a bad template or for both `path` and `template`. **A refusal by the motor itself is not routed to it** — that shows up in the status frame's error code instead (see [Feedback frames and error codes](#feedback-frames-and-error-codes)).
 
 ## Motion tuning (MotionConfig)
 
@@ -956,7 +963,72 @@ python3 examples/teleop.py --mode slave  --channel can0 --host 192.168.1.20
 | `--no-align` | off | Skip the one-shot align to the first frame |
 | `--dry-run` | off | Print the resolved plan and exit without touching hardware |
 
-> **Note**: The SDK repository ships **two** example scripts: `examples/teleop.py` above, and `examples/trajectory.py`, which records a hand-taught motion and replays it. Earlier revisions of this manual listed fifteen more (`basic.py`, `cycle_test.py`, `can_diag.py`, and so on); those files do not exist. **Do not go looking for them.**
+> **Note**: The SDK repository ships **two** example scripts: `examples/teleop.py` above, and `examples/trajectory.py`, covered in [Trajectory record and replay](#trajectory-record-and-replay). Earlier revisions of this manual listed fifteen more (`basic.py`, `cycle_test.py`, `can_diag.py`, and so on); those files do not exist. **Do not go looking for them.**
+
+## Trajectory record and replay
+
+A motion you teach by hand can be captured once and repeated later. Recording puts the motor into zero gravity so you can push the jaws through the approach, the squeeze and the release; replay streams the captured openings back as MIT command frames.
+
+```python
+from litegrip import LiteGrip
+
+with LiteGrip("can0") as gripper:
+    gripper.load_calibration()
+    gripper.enable()
+
+    taught = gripper.record(5.0)   # 5 s of hand-teaching; the jaws are slack
+    taught.save("pick")            # ~/.litegrip/trajectories/pick.lgt
+    gripper.play(taught)           # repeat it
+```
+
+| Method | Signature | Description |
+|------|------|------|
+| `record()` | `record(duration_s, rate_hz=100.0, zero_gravity=True) -> Trajectory` | Blocking hand-teach for `duration_s` seconds |
+| `record_start()` | `record_start(rate_hz=100.0, zero_gravity=True, max_samples=None) -> dict` | Background recording; returns the first `trajectory_status()` snapshot |
+| `record_stop()` | `record_stop(allow_empty=False) -> Trajectory` | Stops and returns the capture |
+| `play()` | `play(trajectory, speed=1.0, kp=None, kd=None, loop=False, align=True) -> dict` | Blocking replay; `loop` must be `False` |
+| `play_start()` | `play_start(trajectory, speed=1.0, kp=None, kd=None, loop=False, align=True) -> dict` | Background replay |
+| `play_stop()` | `play_stop(timeout=2.0)` | Stops and leaves the gripper holding its last target |
+| `trajectory_status()` | `trajectory_status() -> dict` | Session snapshot, or `{"active": False}` |
+
+**What is stored, and why it is portable.** A sample holds the opening normalised by the *recording* unit's travel — dimensionless and direction-free, the same quantity teleoperation puts on the wire. Each gripper has its own zero, direction and calibration, so a raw angle would be meaningless on another unit; a trajectory taught on a normal-mount gripper replays on a reverse-mounted one. The recorded angle, velocity and torque are kept for diagnostics only.
+
+`Trajectory.save("pick")` writes `~/.litegrip/trajectories/pick.lgt`; a name containing a path separator is used as written, and `LITEGRIP_TRAJ_DIR` moves that directory. `Trajectory.load("pick")` reads it back. The file is compact binary with an 8-byte magic header (`LGRTRJ01`, format version 1); a file whose length disagrees with the sample count in its header is rejected with `TrajectoryFormatError` rather than parsed into half a motion.
+
+> **Do not** expect a replay to reproduce a **force**. Replay commands position: the opening is clamped to the local calibrated travel and the recorded torque is never fed forward, so a squeeze recorded against an object repeats as a position path pressing with whatever `kp` yields. **The grip force you taught is not preserved.** When the force matters, follow the replay with `grasp(force_n=...)`.
+
+> **Do not** leave the gripper unattended during `record()`, and do not drive it from the caller while that runs. The recorder streams the zero-torque frames itself, the jaws hold nothing for the whole duration, and whatever is between them will drop. Keep a hand on the gripper.
+
+> **Note**: **To capture a *programmatic* motion, record without zero gravity.** `record_start(zero_gravity=False)` only reads state, so the caller is free to run a `grasp()` or a move sequence from another thread and capture it.
+
+> **Note**: **Recording, replay and teleoperation are mutually exclusive.** All three own the CAN I/O, and starting a second one raises `TeleopBusyError` or `TrajectoryBusyError`; `disconnect()` stops whichever is running. Recording and replay both also require a loaded calibration, and raise `TrajectoryError` without one — the normalised opening has to be converted back through *this* gripper's travel.
+
+> **Note**: **A blocking `play()` returns with only one hold frame sent.** The motor self-locks a communication-loss fault about 100 ms after the frames stop, so call the next action promptly — or use `play_start(loop=True)` with `play_stop()` for a hold that lasts. A one-sample trajectory is a pose with nothing to repeat, so looping it holds that opening.
+
+**`trajectory_status()` keys.** `active`, `kind` (`"record"` or `"play"`), `samples` and `error` are always present. A recording adds `rate_hz`, `zero_gravity` and `loop_hz`; a replay adds `frames`, `speed`, `loop`, `completed`, `openness` and `loop_hz`.
+
+**Runnable example.** `examples/trajectory.py` runs the same thing from the command line:
+
+```bash
+python3 examples/trajectory.py --record 5 --save pick   # hand-teach, then save
+python3 examples/trajectory.py --list                   # no hardware needed
+python3 examples/trajectory.py --play pick --repeat 3
+```
+
+| Option | Default | Meaning |
+|------|------|------|
+| `--record` | — | Hand-teach for this many seconds; the jaws go slack |
+| `--play` | — | Replay a saved trajectory (a bare name, or a path to a `.lgt` file) |
+| `--list` | off | List the saved trajectories and exit; needs no hardware |
+| `--save` | — | Save the recording under this name (default: show it, save nothing) |
+| `--channel` / `--can-id` | `can0` / `0x08` | CAN interface and motor ID |
+| `--mount` | — | Load a `normal`/`reverse` template instead of this channel's calibration |
+| `--rate` | 100.0 | Samples per second while recording |
+| `--speed` | 1.0 | Playback speed multiplier; 0.5 is half speed |
+| `--kp` / `--kd` | configured | Replay stiffness and damping |
+| `--no-align` | off | Do not move to the first sample before following |
+| `--repeat` | 1 | Replay this many times |
+| `--dry-run` | off | Print the resolved plan and exit without touching hardware |
 
 ## Driving the bus directly (litegrip.can)
 
@@ -986,6 +1058,7 @@ For the wire format itself — frame layout, field widths, quantisation, registe
 | **Calibration** | `calibrate()`, `calibrate_guided()`, `calibrate_manual()`, `save_calibration()`, `load_calibration()`, `load_template()`, `list_templates()` |
 | **State** | `get_state()`, `poll()`, `get_position()`, `get_position_rad()`, `get_force()`, `get_torque()`, `get_error()`, `get_temperature()`, `get_info()`, `is_moving()`, `is_grasped()`, `wait_for_ready()` |
 | **Teleoperation** | `teleop_start()`, `teleop_stop()`, `teleop_status()` |
+| **Trajectory** | `record()`, `record_start()`, `record_stop()`, `play()`, `play_start()`, `play_stop()`, `trajectory_status()` |
 | **Expert** | `read_param()`, `send_mit_frame()`, the `litegrip.can` subpackage |
 
 **Public export list** (the `__all__` of `litegrip/__init__.py`):
@@ -1015,6 +1088,13 @@ from litegrip import (
     check_ready, clamp_to_calibrated,
     DEFAULT_GRIP_ID, DEFAULT_GRIP_PORT, DEFAULT_DQ_MAX, FRAME_SIZE,
     encode_frame, decode_frame, teleop_topic,
+    # teleoperation — zenoh link (resolved lazily; needs litegrip[zenoh])
+    ZenohTeleopTransport, Listener, Connector, LatestSlot,
+    # trajectory record and replay
+    Trajectory, TrajectorySample, TrajectoryRecorder, TrajectoryPlayer,
+    trajectory_dir, resolve_path, DEFAULT_RATE_HZ,
+    TrajectoryError, TrajectoryBusyError, TrajectoryNotActiveError,
+    TrajectoryEmptyError, TrajectoryRecordingError, TrajectoryFormatError,
     # subpackages
     can,
 )
@@ -1581,7 +1661,7 @@ A **response frame** has the same structure: byte 2 echoes the opcode (`0x33` = 
 
 ## Python exception types
 
-The SDK has **11** exception classes in total, all inheriting from `LiteGripError`: **7** in `litegrip.exceptions` and **4** in `litegrip.teleop`.
+The SDK has **17** exception classes in total, all inheriting from `LiteGripError`: **7** in `litegrip.exceptions`, **4** in `litegrip.teleop` and **6** in `litegrip.trajectory`.
 
 | Exception | Base class | Meaning |
 |------|------|------|
@@ -1596,8 +1676,14 @@ The SDK has **11** exception classes in total, all inheriting from `LiteGripErro
 | `TeleopBusyError` | `TeleopError` | `teleop_start()` was called while a session is already running |
 | `TeleopNotActiveError` | `TeleopError` | an operation needs an active teleoperation session |
 | `TeleopNotReady` | `TeleopError` | the gripper cannot safely be teleoperated yet (uncalibrated, zero travel, or `rad_to_mm == 0`) |
+| `TrajectoryError` | `LiteGripError` | base class of the trajectory errors; also raised when the unit is uncalibrated, so a normalised opening would be a guess |
+| `TrajectoryBusyError` | `TrajectoryError` | a recording or replay was started while another session (teleop, record, play) is running |
+| `TrajectoryNotActiveError` | `TrajectoryError` | `record_stop()` was called with nothing being recorded |
+| `TrajectoryEmptyError` | `TrajectoryError` | a capture or a replay dealt with zero samples |
+| `TrajectoryRecordingError` | `TrajectoryError` | the sampling loop died, or a timed capture did not fill — a partial capture is never returned as if it were whole |
+| `TrajectoryFormatError` | `TrajectoryError` | a byte stream is not a well-formed trajectory file (magic, version, length or sample values invalid) |
 
-> **Note**: The four teleoperation exceptions live in `litegrip.teleop`; import them from there, not from `litegrip`. Clamping an out-of-range target and skipping validation of force parameters -- neither raises an exception (see [Motion control](#motion-control-openclose-and-position) and [Grasping and force control](#grasping-and-force-control)).
+> **Note**: The four teleoperation exceptions live in `litegrip.teleop` and the six trajectory ones in `litegrip.trajectory`; all ten are re-exported from `litegrip`, so `from litegrip import TrajectoryFormatError` works. Clamping an out-of-range target and skipping validation of force parameters -- neither raises an exception (see [Motion control](#motion-control-openclose-and-position) and [Grasping and force control](#grasping-and-force-control)).
 
 ## Error handling guidance
 
@@ -1606,7 +1692,7 @@ The SDK has **11** exception classes in total, all inheriting from `LiteGripErro
 3. `CommError`: check the cabling, the terminating resistors, and the CAN FD setting.
 4. `CANTimeoutError`: check whether 24 V is connected; check whether you are only listening and never sending.
 5. `HardwareError`: work through the error codes one by one; **for overtemperature and overcurrent, stop the unit and let it cool down first, then investigate the load**. When enable fails, first confirm that 24 V is connected and that `ERR` is not `0x9`. Reading the Chinese "unknown error" means the driver reported a fault code the SDK does not parse; consult the driver's **indicator LEDs**.
-6. `CommandError`: the current version never raises it; if you see it in your environment, the version in use does not match this document.
+6. `CommandError`: the actions layer's calibration guard. Check `config.calibrated` and that the two endpoints differ; if it came from `load_calibration()`, check the template name and that only one of `path` / `template` was given.
 
 > **Note**: **An out-of-range position and uncalibrated force parameters -- neither raises an exception.** Do not expect `try/except` to catch "out of range"; you must check the target value yourself first.
 
