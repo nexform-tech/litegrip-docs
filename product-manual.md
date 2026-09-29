@@ -126,7 +126,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | **Per-finger stroke** | **43.500 mm** (= effective stroke ÷ 2) |
 | Working stroke | **0 ~ 87.000 mm** (the entire stroke is usable, with no internally disabled region; by caliper actual aperture it is 1.508 ~ 87.000 mm) |
 | Power-off self-locking | **None** (holding torque is lost when power is removed) |
-| No-load starting torque | 0.198 ~ 0.222 N·m (measured on a single prototype, 2026-09-16) |
+| No-load starting torque | 0.198 ~ 0.222 N·m |
 | Total mass | **0.483 kg**[A, measured with a scale, 2026-09-28; includes motor, cable, fingertips, and mounting parts] |
 
 > **How "effective stroke" is measured**: with the drive force removed, push the two fingers together and pull them apart by hand to the two **extreme positions** (the open end rests against the mechanical hard stop; the closed end is the two fingers touching, with **no hard stop**), and measure between the inner faces of the two fingertips with a digital caliper. The mean of 5 readings at the closed end is **1.508 mm**, and the open end is **87.000 mm**.
@@ -178,12 +178,12 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 | Item | Specification |
 |------|------|
-| Maximum per-finger gripping force | **20 N**[measured, 2026-09-28; = total two-finger gripping force ÷ 2] |
-| Total two-finger gripping force | **40 N**[measured, 2026-09-28. In another test, the reading from gripping a scale with the gripper was **4500 g ≈ 44.1 N**; the two readings are of the same order of magnitude and differ by about 10%, and the difference comes from the measurement method and the sensor update rate; **take 40 N as the reference**] |
+| Maximum per-finger gripping force | **20 N**[measured; = total two-finger gripping force ÷ 2] |
+| Total two-finger gripping force | **40 N**[measured. In another test, the reading from gripping a scale with the gripper was **4500 g ≈ 44.1 N**; the two readings are of the same order of magnitude and differ by about 10%, and the difference comes from the measurement method and the sensor update rate; **take 40 N as the reference**] |
 | Recommended working gripping force | **20 N**[recommended value: 50% of the total gripping force; do not use at the maximum gripping force for long-term continuous operation] |
-| Rated load | **2 kg**[measured with weights, 2026-09-28; see the notes below for the pose and test piece] |
-| Maximum short-term load | **3 kg**[measured with weights, 2026-09-28; only short-term holding is guaranteed] |
-| Allowable static load in the vertical direction Fz | **20 N**[measured with weights, 2026-09-28] |
+| Rated load | **2 kg**[measured with weights; see the notes below for the pose and test piece] |
+| Maximum short-term load | **3 kg**[measured with weights; only short-term holding is guaranteed] |
+| Allowable static load in the vertical direction Fz | **20 N**[measured with weights] |
 
 > **Per-finger force and total two-finger force must not be mixed up**; when selecting, confirm which of the two values you are citing.
 >
@@ -339,7 +339,7 @@ The connections are as follows:
 | Permitted voltage range | **15 ~ 32 V** (protection trip points; the full description is in Section 2.5) |
 | Undervoltage protection point | 15 V |
 | Overvoltage protection point | 32 V |
-| No-load current | **0.037 A**[A, measured from the power supply reading, 2026-09-28] |
+| No-load current | **0.037 A** |
 | Rated / peak current | **3.1 A / 16.5 A**[drive motor manual nominal **power supply** current @24 V] |
 
 **Applying 24 V is the precondition for motor torque.** With only the USB-CAN adapter connected, the gripper can communicate and report status, but **it will not move**, and it reports an undervoltage fault (error code `0x9`). This is normal behavior, not a fault.
@@ -381,10 +381,7 @@ This chapter covers acceptance, installation, wiring, host environment setup, da
 | Document | Reader |
 |------|------|
 | the Software Development Manual | Integration engineers — software interface usage and preconditions |
-| the CAN Communication Protocol Manual | Integration engineers — communication protocol and registers |
 | the Parameter Document | Integration engineers — all parameter values and their sources |
-| the Safety Manual | Safety and quality staff — safety design, boundaries, and usage requirements |
-| the Documents Shipped with the Product | End users — factory certificate of conformity, packing list, warranty card |
 
 ## Appearance and parts
 
@@ -406,17 +403,17 @@ LiteGrip consists of the gripper body, two parallel-motion fingers, the fingerti
 4. Mount the gripper on a bracket or robot-arm end flange with **sufficient rigidity**. The mounting face must be flat and the fastening bolts must be loaded evenly (**contact us first to request the mounting interface dimensions**).
 5. After mounting, confirm there are **no obstructions** in the fingers' range of motion.
 
-> **Warning**: **This gripper has a mechanical hard stop in the opening direction, and none in the closing direction.** Closing is the two fingers **colliding**, held only by the mechanism's elasticity; **it will not "stop when it hits a hard stop"**. You must therefore confirm at installation that **nothing in the closing path of the two fingers needs the gripper to "push against" it**, and do not expect to use the gripper to press a part onto a locating face. To keep the gripper holding, use the **torque control** of `grasp()` / `close(force_n=...)`, not a position command driven to the limit. See the note at the end of the "Stroke and position parameters" section.
+> **Note**: **This gripper has a mechanical hard stop in the opening direction, and none in the closing direction.** Closing is the two fingers **colliding**, held only by the mechanism's elasticity; **it will not "stop when it hits a hard stop"**. You must therefore confirm at installation that **nothing in the closing path of the two fingers needs the gripper to "push against" it**, and do not expect to use the gripper to press a part onto a locating face. To keep the gripper holding, use the **torque control** of `grasp()` / `close(force_n=...)`, not a position command driven to the limit. See the note at the end of the "Stroke and position parameters" section.
 
-> **Warning**: **You must cut the 24 V power supply before installation or removal.**
+> **Note**: **You must cut the 24 V power supply before installation or removal.**
 >
-> **Warning**: **This manual does not provide the mounting interface dimensions** (flange standard, hole pattern, thread, permitted screw length, recommended tightening torque). **Contact us for the mounting documentation before you install the gripper.**
+> **Note**: **This manual does not provide the mounting interface dimensions** (flange standard, hole pattern, thread, permitted screw length, recommended tightening torque). **Contact us for the mounting documentation before you install the gripper.**
 
 ### Wiring
 
 Wire the three connection groups as shown in Section 3.2: the 24 V power supply, the CAN bus, and the CAN terminating resistors (one 120 Ω terminating resistor at each end of the bus).
 
-> **Warning**: **Reversed power polarity can damage the device.** Before power-up, confirm the polarity with a multimeter.
+> **Note**: **Reversed power polarity can damage the device.** Before power-up, confirm the polarity with a multimeter.
 >
 > **The terminating resistors are mandatory.** The typical symptom when they are missing is "communication that drops in and out".
 
@@ -490,11 +487,11 @@ If you use the example scripts shipped with the product, you can run them direct
 
 > **Note**: The criterion is whether the fingers stop moving. **Gripping an object and hitting the stroke endpoint both count as "stopped moving" and both report success** — so you cannot rely on the return value alone to distinguish "gripped it" from "hit the endpoint". To tell them apart, use the position reading.
 >
-> **Warning**: **The force parameter is currently not validated at all.** The shipped SDK converts the force value directly into a feedforward torque and sends it (the conversion coefficient is a nominal value never calibrated against a real load); **it neither checks whether force calibration has been completed nor refuses to execute**. Before force calibration is complete, **do not rely on the force parameter**; for pure position grasping, set the force parameter explicitly to 0. See Section 2.3.9 and Section 4.7.1 of the Software Development Manual.
+> **Note**: **The force parameter is currently not validated at all.** The shipped SDK converts the force value directly into a feedforward torque and sends it (the conversion coefficient is a nominal value never calibrated against a real load); **it neither checks whether force calibration has been completed nor refuses to execute**. Before force calibration is complete, **do not rely on the force parameter**; for pure position grasping, set the force parameter explicitly to 0. See Section 2.3.9 and Section 4.7.1 of the Software Development Manual.
 
 **Manual teaching**: When you need the gripper to hold at a new position, you can enter **zero gravity mode** (the SDK's `enter_zero_gravity()`): the motor then outputs no torque (`kp = kd = 0`) and you can push the fingers by hand. When you call `exit_zero_gravity()` to leave the mode, the SDK uses the `kp` / `kd` from the configuration to **hold the position at the moment of exit**.
 
-> **Warning**: Zero gravity mode **does not itself hold position** — once you enter it, the fingers are free, and they stay wherever you let go; they do not return on their own. Position is held only at the moment you leave the mode. Also, `exit_zero_gravity()` **performs no range check**: even if you push the fingers beyond the calibrated endpoint, it will hold that position anyway and **will not report an error**. **Manual teaching must be supervised by a person on site.**
+> **Note**: Zero gravity mode **does not itself hold position** — once you enter it, the fingers are free, and they stay wherever you let go; they do not return on their own. Position is held only at the moment you leave the mode. Also, `exit_zero_gravity()` **performs no range check**: even if you push the fingers beyond the calibrated endpoint, it will hold that position anyway and **will not report an error**. **Manual teaching must be supervised by a person on site.**
 
 ### Routine checks
 

@@ -84,7 +84,7 @@ Safety notices in the other sections of this document name their severity with t
 4. **Do not use a software stop as a safety function.** `stop()` only sends a zero-torque frame, the motor stays enabled and can be back-driven, and it does not return success or failure; the `disable()` return value only means the command was sent, not confirmed (see Section 2.3.5). Neither can replace a hardware emergency stop.
 5. **Do not treat a return value as evidence that the command took effect.** A motion interface return value only means the frame was sent; only a feedback frame can prove the actual state.
 6. **Do not use any force parameter before force calibration is complete.** The `force_n` conversion uses the nominal coefficient `0.1 N·m/N`, which the SDK neither validates nor limits (see Section 2.3.9).
-7. Frames must be sent periodically during operation, otherwise the driver **automatically exits the enabled state** after 0.4 s [to be measured · B, verify by reading back RID 9, see Appendix C, group B]; **this timeout protection can be disabled, and once it is disabled the motor keeps the last torque command when the link drops** -- do not disable it without an assessment.
+7. Frames must be sent periodically during operation, otherwise the driver **automatically exits the enabled state** after 0.4 s [to be measured · B, verify by reading back RID 9]; **this timeout protection can be disabled, and once it is disabled the motor keeps the last torque command when the link drops** -- do not disable it without an assessment.
 8. Debugging and calibration **must be supervised by a person present**, and the hardware emergency stop must be available.
 9. If you find anything abnormal (unusual noise, jamming, abnormal temperature rise, jumping position readings), **stop the machine immediately and cut the 24 V**, then investigate.
 
@@ -133,7 +133,7 @@ The LiteGrip Python SDK (the `litegrip` package, version 2.2.0) is an upper-laye
 | **Motion requires the calibration to be loaded explicitly first** | `connect()` **does not** load the calibration file automatically; without it, motion runs on placeholder coefficients (see Section 2.3.4) |
 | **Driver protection is not reimplemented** | Overvoltage / undervoltage / overcurrent / overtemperature / disconnection protection is enforced by the DM-J4310-2EC driver firmware |
 
-> **Warning**: **This SDK does not implement "safety limits".** Out-of-range targets are clamped; `kp` / `kd` / `tau` are silently saturated when they fall outside the encoding range; force parameters are applied unconditionally. **Measures to keep the fingers from damaging the workpiece or crushing a person must be implemented by the integrator, in software or in hardware.**
+> **Note**: **This SDK does not implement "safety limits".** Out-of-range targets are clamped; `kp` / `kd` / `tau` are silently saturated when they fall outside the encoding range; force parameters are applied unconditionally. **Measures to keep the fingers from damaging the workpiece or crushing a person must be implemented by the integrator, in software or in hardware.**
 
 ## Library dependencies
 
@@ -177,7 +177,7 @@ sudo ip link set can0 type can bitrate 1000000 fd off
 sudo ip link set can0 up
 ```
 
-> **Warning**: **`fd off` cannot be omitted.** If the interface is brought up in CAN FD mode, **communication will not succeed** even with the correct baud rate — and the symptom looks a lot like "no 24 V connected", so it is easily misdiagnosed as a hardware fault.
+> **Note**: **`fd off` cannot be omitted.** If the interface is brought up in CAN FD mode, **communication will not succeed** even with the correct baud rate — and the symptom looks a lot like "no 24 V connected", so it is easily misdiagnosed as a hardware fault.
 
 **Step two, apply the 24 V drive power.** The motor needs 24 V to produce torque and turn.
 
@@ -247,7 +247,7 @@ LiteGrip(
 > gripper.enable()
 > ```
 >
-> **Move without loading the calibration and the risk is yours**: at this point `config` is still the defaults of `GripperConfig()` (`pos_closed_rad=0.0`, `pos_open_rad=1.14`, `rad_to_mm=105.26`), and both the millimeter conversion and the position clamping run on this set of placeholder values; see Section 2.3.6 and Section 2.3.12. **These three placeholder values differ from unit to unit and must be replaced by calibration** [to be measured · B, for the calibration method see Appendix C, group B].
+> **Move without loading the calibration and the risk is yours**: at this point `config` is still the defaults of `GripperConfig()` (`pos_closed_rad=0.0`, `pos_open_rad=1.14`, `rad_to_mm=105.26`), and both the millimeter conversion and the position clamping run on this set of placeholder values; see Section 2.3.6 and Section 2.3.12. **These three placeholder values differ from unit to unit and must be replaced by calibration** [to be measured · B].
 
 ### Enabling, disabling, and fault handling
 
@@ -435,7 +435,7 @@ state = gripper.get_state(wait=True)
 | Method | Returns |
 |--------------------------------------|--------------------------------------------------------------|
 | `is_moving()` | Whether the gripper is moving |
-| `is_grasped()` | Whether the torque exceeds the grasp detection threshold (`config.grasp_torque_threshold`, default 0.5 N·m) [to be measured · C, can only be fixed after force calibration, see Appendix C, group C] |
+| `is_grasped()` | Whether the torque exceeds the grasp detection threshold (`config.grasp_torque_threshold`, default 0.5 N·m) [to be measured · C, can only be fixed after force calibration] |
 | `wait_for_ready(timeout=5.0)` | Blocks until enabled and stationary; returns `False` on timeout |
 
 **Polling and expert interfaces:**
@@ -552,7 +552,7 @@ The scale is computed as `rad_to_mm = stroke used for calibration (mm) ÷ measur
 | `calibrate_guided()` | **hardcoded `120.0`**; it does not even read `config` |
 | `calibrate_manual()` | `config.max_stroke_mm`, **default `120.0`** |
 
-> **The value convention for this cell is settled: use the "effective stroke", which on this unit is `87.000 mm`** [2026-09-28, caliper re-measurement of the fully open aperture 87.000 mm, the same number as the effective stroke].
+> **The value convention for this cell is settled: use the "effective stroke", which on this unit is `87.000 mm`** [caliper re-measurement of the fully open aperture 87.000 mm, the same number as the effective stroke].
 > That value has been written into this unit's calibration file as `max_stroke_mm`.
 >
 > **Reading convention (required reading)**: `87.000` is the **span of the SDK position `p`** (0 → 87.000), while the **actual aperture** span measured with a caliper is
@@ -578,7 +578,7 @@ The scale is computed as `rad_to_mm = stroke used for calibration (mm) ÷ measur
 | `max_stroke_mm` | `120.0` (**placeholder value; `87.000` should be entered on this unit**) | Mechanical stroke (mm), **used only during calibration as the scale numerator**; see Section 2.3.11 |
 | `rad_to_mm` | `105.26` [computed by the script after calibration] | Angle → millimeter conversion (**placeholder value when uncalibrated**) |
 | `nm_to_n` | `10.0` | Torque → force conversion. **The current code does not read this field**; it actually uses the class constant `UnitConversion.NM_TO_N = 10.0`, so changing it has no effect |
-| `grasp_torque_threshold` | `0.5` [to be measured · C, no basis, can only be fixed after force calibration, see Appendix C, group C] | The decision threshold of `is_grasped()` (N·m) |
+| `grasp_torque_threshold` | `0.5` [to be measured · C, no basis, can only be fixed after force calibration] | The decision threshold of `is_grasped()` (N·m) |
 
 > **Note**: **The default values of `pos_closed_rad` / `pos_open_rad` / `rad_to_mm` are placeholders, not this unit's real values.** The real values live in the calibration file and take effect only when you call `load_calibration()` explicitly (`connect()` does not do this).
 >
@@ -993,7 +993,7 @@ A **response frame** has the same structure: byte 2 echoes the opcode (`0x33` = 
 >
 > **Note**: **RID 21 / 22 / 23 (`PMAX` / `VMAX` / `TMAX`) are MIT quantization ranges, not protection thresholds.** They define the range of the MIT frame fields, and **must not** be treated as safety limits for position, velocity, or torque. **The real velocity protection is in RID 6 (`MAX_SPD`).**
 >
-> **To be measured**: the ranges the SDK uses in this section are **hardcoded** `±12.5 / ±30 / ±10` (see `litegrip/can/protocol.py`), and **the code never reads RID 21/22/23 back**, so it cannot be asserted that they match the actual values in this motor's registers [to be measured · B, verify by reading back with `scripts/read_driver_limits.py`, see Appendix C, group B].
+> **To be measured**: the ranges the SDK uses in this section are **hardcoded** `±12.5 / ±30 / ±10` (see `litegrip/can/protocol.py`), and **the code never reads RID 21/22/23 back**, so it cannot be asserted that they match the actual values in this motor's registers [to be measured · B, verify by reading back with `scripts/read_driver_limits.py`].
 
 **Example frames:**
 
@@ -1208,7 +1208,7 @@ for i in $(seq 5); do cansend can0 08#FFFFFFFFFFFFFFFC; sleep 0.01; done
 
 Expect the `ERR` byte of the feedback frame to be `0x9` (undervoltage). **Receiving `0x9` already proves that the bus is up, the motor is running, and it answers correctly**, which narrows the problem to the power supply side — this is a communication check you can complete without applying drive power.
 
-> **Warning**: once 24 V is connected, sending an enable frame makes the mechanism **really move**. Before you run it, confirm that no one and nothing is inside the fingers' range of motion.
+> **Note**: once 24 V is connected, sending an enable frame makes the mechanism **really move**. Before you run it, confirm that no one and nothing is inside the fingers' range of motion.
 
 ## Connection troubleshooting
 
@@ -1235,44 +1235,5 @@ Expect the `ERR` byte of the feedback frame to be `0x9` (undervoltage). **Receiv
 
 ---
 
-# Appendix C: Index of parameters to be measured (by test method)
-
-> This appendix gathers in one place every item in this document tagged [to be measured] / [not measured], **split into three groups by how you measure it**.
-> **The "measured value" column is left blank; measure one and fill one in.**
->
-> | Group | Meaning | What you need |
-> |---|---|---|
-> | **A** | measure directly with tools | calipers, a force gauge, a dial indicator, and so on. **No code needed at all** |
-> | **B** | run existing scripts | the `examples/` of the shipped SDK, or the probe scripts under `scripts/` in the development repository |
-> | **C** | requires a new script first | right now there is **no** ready-made way to measure it |
->
-> **Many numbers in this document are not items to be measured.** Interface defaults (`kp=100.0`, `duration=1.0`, `stall_threshold=0.001`, and so on), MIT field ranges (`±12.5 / ±30 / ±10`), the five 1 LSB values, and the code values and byte strings of the example frames are all **facts in the code**; this document only describes the implementation as it is, and they need no measurement.
-> Hardware-specification items to be measured (gripping force, load, current, dimensions, and so on) are in the corresponding appendix at the end of the Product Manual.
-
-## A. Measure directly with tools (no code needed)
-
-| Parameter | Section | Current value | Measuring tool | Measured value |
-|---|---|---|---|---|
-| full-open aperture of this unit (used to fill in `max_stroke_mm`) | configuration object | placeholder `120.0` | digital caliper | **87.000 mm** (measured with a caliper on 2026-09-28; on the caliper span convention it is `85.492`, see Section 2.3.11) |
-
-## B. Run existing scripts
-
-| Parameter | Section | Current value | Script | Measured value |
-|---|---|---|---|---|
-| driver communication timeout (verify by reading back RID 9) | communication timing | 0.4 s | `scripts/read_driver_limits.py` | |
-| MIT field quantization range (read back RID 21 / 22 / 23) | parameter frames and registers | hardcoded `±12.5 / ±30 / ±10` | `scripts/read_driver_limits.py` | |
-| velocity protection threshold (read back RID 6 `MAX_SPD`) | parameter frames and registers | not read back | `scripts/read_driver_limits.py` | |
-| placeholder defaults for `pos_closed_rad` / `pos_open_rad` / `rad_to_mm` | configuration object | `0.0` / `1.14` / `105.26` | `examples/travel_probe.py` or `calibrate_guided()` | |
-| calibration motor-stall threshold (`step_rad` / `stall_delta` / `stall_cycles` / `max_iter`) | calibration and zero point | `0.08` / `0.0004` / `6` / `40` | run one full calibration and check that it triggers reliably | |
-| default motion velocity `speed_mm_s` / `speed_rad_s` | motion control | `30.0` / `0.5` | run `examples/cycle_test.py` and verify | |
-
-## C. Requires a new script
-
-| Parameter | Section | Current value | What is missing | Measured value |
-|---|---|---|---|---|
-| `grasp_torque_threshold` (the `is_grasped()` criterion) | state reading / configuration object | `0.5` N·m | no basis; can only be fixed after force calibration | |
-| force -> torque conversion factor (`NM_TO_N` / `N_TO_NM`) | grasping and force control | nominal `10.0` / `0.1` | a new force-calibration script plus a real load are needed; this factor decides whether `force_n` can be trusted | |
-
----
 
 > **End of document** If you have questions or need more information, contact the NEXFORM ROBOTICS technical team.
