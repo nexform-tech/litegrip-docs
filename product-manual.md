@@ -1,19 +1,3 @@
----
-revisions:
-  - version: V1.0.1
-    date: 2026-09-28
-    note: Effective stroke changed to 87.000 mm throughout, with both conventions spelled out (SDK position and actual caliper aperture); position resolution changed to 0.0242 mm per this unit's calibration coefficient; torque reading cap corrected; table structure and numbering fixed
-  - version: V1.0.0
-    date: 2026-09-24
-    note: Created the LiteGrip Product Manual skeleton
-  - version: V0.3.0
-    date: 2026-09-23
-    note: Re-recorded all angle values against the new zero point after full teardown and reassembly
-  - version: V0.2.0
-    date: 2026-09-18
-    note: Corrected all millimeter values against caliper measurements
----
-
 # Preface
 
 LiteGrip is an adaptive two-finger parallel gripper that NEXFORM ROBOTICS designed for research and education, AI robot development, and lightweight industrial automation. It uses direct motor drive and an adaptive grasping mechanism, with an effective stroke of 87.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps), and ships with a Python SDK, the CAN Communication Protocol Manual, and the calibration file for this unit. It suits tasks such as grasping, transferring, loading and unloading, sorting, and algorithm validation.
