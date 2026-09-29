@@ -26,7 +26,7 @@ LiteGrip is an adaptive two-finger parallel gripper that NEXFORM ROBOTICS design
   - [Overview](#overview-1)
   - [Appearance and parts](#appearance-and-parts)
   - [Unboxing and installation](#unboxing-and-installation)
-  - [Host environment setup](#host-environment-setup)
+  - [Host requirements](#host-requirements)
   - [Daily use and maintenance](#daily-use-and-maintenance)
   - [Troubleshooting](#troubleshooting)
   - [FAQ and technical support](#faq-and-technical-support)
@@ -64,7 +64,7 @@ The units of physical quantities used in this document and in the SDK are as fol
 
 > **Unless stated otherwise, "mm" in this document always means "actual aperture"** (the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **The position the SDK returns is `p` from the table above, not the actual aperture**; on the closed side the two differ by a 1.508 mm closing gap: `actual aperture ≈ p + 1.508`. See Section 2.3.7 of the Software Development Manual for details.
+> **The position the SDK returns is `p` from the table above, not the actual aperture**; on the closed side the two differ by a 1.508 mm closing gap: `actual aperture ≈ p + 1.508`. For the full reading convention, see "Units and conversion" in the Software Development Manual.
 >
 > **rad values are not a product specification.** The assembly phase between the motor and the gripper mechanism **differs from unit to unit**, so the rad endpoints differ on every gripper. Always use **the calibration file shipped with that unit** — this manual states no rad numbers for any sample unit.
 
@@ -96,7 +96,7 @@ Before the first power-up of the gripper or the gripper system, you must underst
 5. Read the documentation carefully before you develop or debug with the SDK or the host computer, and make sure the input parameters (target position, velocity, gripping force) are correct. For the first motion, use a low velocity and a conservative stroke.
 6. **This product has no power-off self-locking.** After disable or abnormal power-down, the motor no longer outputs a holding torque and the gripper may move under gravity or an external force. If the application does not allow movement after power-off, **you must add a separate mechanical holding device**.
 7. If an accident or an abnormal condition occurs during operation, press the hardware emergency stop and cut the power immediately, then investigate the problem.
-8. Unauthorized personnel must never modify this unit's calibration file, the motor registers, or the host-side limiting parameters. The modified stroke endpoints and conversion coefficients directly affect position control; see Section 2.2 and Section 2.3.11 of the Software Development Manual for details.
+8. Unauthorized personnel must never modify this unit's calibration file, the motor registers, or the host-side limiting parameters. The modified stroke endpoints and conversion coefficients directly affect position control; for details see "Units and conversion" and "Calibration and zero point" in the Software Development Manual.
 9. Before installation, maintenance, or cleaning, **you must disconnect the 24 V power supply and confirm that power is off**.
 
 #### Personnel safety
@@ -158,7 +158,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 > **How "effective stroke" is measured**: with the drive force removed, push the two fingers together and pull them apart by hand to the two **extreme positions** (the open end rests against the mechanical hard stop; the closed end is the two fingers touching, with **no hard stop**), and measure between the inner faces of the two fingertips with a digital caliper. The mean of 5 readings at the closed end is **1.508 mm**, and the open end is **87.000 mm**.
 >
-> **"Effective stroke 87.000 mm" uses the SDK scale convention (`p` from 0 to 87.000)**. If you express the same stroke span as a caliper reading, the span is **85.492 mm** — what is missing is exactly the 1.508 mm gap at the closed end. Both conventions are stated in Section 2.2; **do not mix them**.
+> **"Effective stroke 87.000 mm" uses the SDK scale convention (`p` from 0 to 87.000)**. If you express the same stroke span as a caliper reading, the span is **85.492 mm** — what is missing is exactly the 1.508 mm gap at the closed end. **Do not mix the two conventions.**
 >
 > **Note**: **The no-load starting torque is a record of the starting torque corresponding to no-load static friction. It is not the gripping force, not the continuous torque, and must not be used as a torque cap.**
 
@@ -184,7 +184,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 **Sign convention**: for the motor angle, **a larger value = the closing direction**, a smaller value = the opening direction; `dq > 0` and `tau > 0` mean the closing direction.
 
-> **Note**: When a position target exceeds the calibrated endpoint, the SDK **silently clamps** it to the endpoint — it neither raises an error nor gives any indication. **"Commands must not go out of range" must be implemented by the integrator in the application layer** (see the Software Development Manual, Section 2.3.6).
+> **Note**: When a position target exceeds the calibrated endpoint, the SDK **silently clamps** it to the endpoint — it neither raises an error nor gives any indication. **"Commands must not go out of range" must be implemented by the integrator in the application layer** (see "Motion control (open/close and position)" in the Software Development Manual).
 >
 > **Note**: **The two endpoints are different in nature, and neither is "hard limit protection".** The table below gives the **observation** obtained by pushing the gripper by hand in a zero gravity state and recording the motion extremes.
 >
@@ -193,7 +193,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 > | **Opening (tension)** | **Yes** | At two levels of push force, it springs back to the same position after the force is removed (difference **0 counts**) |
 > | **Closing (pressure)** | **No** | After the force is removed the two fingers **spring apart by about 72 counts (≈ 2 % of full stroke)** before they stop — this is the two fingers **colliding in contact**, held by the mechanism's elasticity, not hitting a hard stop |
 >
-> **Consequence**: **There is no hard limit protection in the closing direction.** Continuously issuing close commands = **continuous pushing against the stop**; the mechanism will not "stop when it hits the hard stop". This direction can only be covered by the SDK's **torque cap** (factory default **10.0 N·m**). When you need to hold a grip for a long time, use the **torque control** of `grasp()` / `close(force_n=...)`; do not let a position command keep pushing against the closed end.
+> **Consequence**: **There is no hard limit protection in the closing direction.** Continuously issuing close commands = **continuous pushing against the stop**; the mechanism will not "stop when it hits the hard stop". This direction can only be covered by the SDK's **torque cap** (factory default **10.0 N·m**). When you need to hold a grip for a long time, use **torque control** rather than a position command driven against the closed end; see "Grasping and force control" in the Software Development Manual.
 
 ## Grip and load capacity
 
@@ -229,7 +229,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | Absolute position accuracy | **0.5 mm** |
 | Repeatability | **0.5 mm**, acceptance criterion ≤ 0.5 mm |
 
-> **The velocities in the table above are recommended values derived by the Parameter Document using a "stopping distance model"; they are not measured data, and they are not the gripper's own speed limit.** The shipped SDK **does not implement this model** — it will not slow down automatically near an endpoint, nor will it reject or truncate the velocity value you supply; instead it converts the velocity you give and sends it as-is (see the Software Development Manual, Section 2.3.6). These two numbers therefore **can only serve as design input when the integrator limits the speed itself**, and **until they are measured, the velocities in this section must not be used for safety assessment**.
+> **The velocities in the table above are recommended values derived by the Parameter Document using a "stopping distance model"; they are not measured data, and they are not the gripper's own speed limit.** The shipped SDK **does not implement this model** — it will not slow down automatically near an endpoint, nor will it reject or truncate the velocity value you supply; instead it converts the velocity you give and sends it as-is (see "Motion control (open/close and position)" in the Software Development Manual). These two numbers therefore **can only serve as design input when the integrator limits the speed itself**, and **until they are measured, the velocities in this section must not be used for safety assessment**.
 >
 > **Position resolution is the encoder resolution, not repeatability.** The latter is affected by mechanical backlash, friction, control gain, and other factors; treat it as a design target when you cite it.
 
@@ -305,7 +305,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 > and the peak torque **12.5 N·m**.
 > — The gripper's current design value is **1.0 N·m**. **No torque reading above 10 N·m can ever appear** (the feedback `tau` field is decoded as ±10 N·m, so the range itself is capped at 10).
 
-> **A complete selection Q&A table is in Section 4.7.1.**
+> **A complete selection Q&A is in [Q&A](#qa).**
 
 # Electrical interface
 
@@ -356,14 +356,14 @@ The connections are as follows:
   Terminating resistor 120 Ω: one at each physical end of the CAN bus
 ```
 
-> **Note**: **This manual does not provide cable and connector specifications** (see Section 2.6). **Do not make your own cables or buy your own connectors** — contact us and we will supply them.
+> **Note**: **This manual does not provide cable and connector specifications** (see "Mechanical and environmental specifications"). **Do not make your own cables or buy your own connectors** — contact us and we will supply them.
 
 ## Power supply
 
 | Item | Specification |
 |------|------|
 | Rated voltage | 24 V DC |
-| Permitted voltage range | **15 ~ 32 V** (protection trip points; the full description is in Section 2.5) |
+| Permitted voltage range | **15 ~ 32 V** (protection trip points; the full description is in "Electrical specifications") |
 | Undervoltage protection point | 15 V |
 | Overvoltage protection point | 32 V |
 | No-load current | **0.037 A** |
@@ -403,7 +403,7 @@ For interface configuration commands, frame formats, and register numbers, see t
 
 ## Overview
 
-This chapter covers acceptance, installation, wiring, host environment setup, daily use and maintenance, troubleshooting, and common questions for LiteGrip. It does not use specialized terminology to describe communication details; if you need to develop your own control program, see the technical documents shipped with the product:
+This chapter covers acceptance, installation, wiring, host requirements, daily use and maintenance, troubleshooting, and common questions for LiteGrip. It does not use specialized terminology to describe communication details; if you need to develop your own control program, see the technical documents shipped with the product:
 
 | Document | Reader |
 |------|------|
@@ -430,7 +430,7 @@ LiteGrip consists of the gripper body, two parallel-motion fingers, the fingerti
 4. Mount the gripper on a bracket or robot-arm end flange with **sufficient rigidity**. The mounting face must be flat and the fastening bolts must be loaded evenly (**contact us first to request the mounting interface dimensions**).
 5. After mounting, confirm there are **no obstructions** in the fingers' range of motion.
 
-> **Note**: **This gripper has a mechanical hard stop in the opening direction, and none in the closing direction.** Closing is the two fingers **colliding**, held only by the mechanism's elasticity; **it will not "stop when it hits a hard stop"**. You must therefore confirm at installation that **nothing in the closing path of the two fingers needs the gripper to "push against" it**, and do not expect to use the gripper to press a part onto a locating face. To keep the gripper holding, use the **torque control** of `grasp()` / `close(force_n=...)`, not a position command driven to the limit. See the note at the end of the "Stroke and position parameters" section.
+> **Note**: **This gripper has a mechanical hard stop in the opening direction, and none in the closing direction.** Closing is the two fingers **colliding**, held only by the mechanism's elasticity; **it will not "stop when it hits a hard stop"**. You must therefore confirm at installation that **nothing in the closing path of the two fingers needs the gripper to "push against" it**, and do not expect to use the gripper to press a part onto a locating face. To keep the gripper holding, use **torque control**, not a position command driven to the limit. See the note at the end of [Stroke and position parameters](#stroke-and-position-parameters).
 
 > **Note**: **You must cut the 24 V power supply before installation or removal.**
 >
@@ -438,7 +438,7 @@ LiteGrip consists of the gripper body, two parallel-motion fingers, the fingerti
 
 ### Wiring
 
-Wire the three connection groups as shown in Section 3.2: the 24 V power supply, the CAN bus, and the CAN terminating resistors (one 120 Ω terminating resistor at each end of the bus).
+Wire the three connection groups as shown in [Interface overview](#interface-overview): the 24 V power supply, the CAN bus, and the CAN terminating resistors (one 120 Ω terminating resistor at each end of the bus).
 
 > **Note**: **Reversed power polarity can damage the device.** Before power-up, confirm the polarity with a multimeter.
 >
@@ -456,69 +456,30 @@ Wire the three connection groups as shown in Section 3.2: the 24 V power supply,
 
 **Handling abnormalities**: If you find obvious deformation or jamming of the fingers, damaged cables, bent connector pins, a cracked housing, or water or foreign objects inside the packaging, **do not apply power**; contact us.
 
-## Host environment setup
+## Host requirements
 
 | Item | Requirement |
 |------|------|
 | Operating system | **Linux** (kernel support for SocketCAN required) |
 | Python | 3.8 or later |
 | Hardware interface | USB-CAN adapter |
-| Third-party dependencies | The library code uses only the Python standard library and Linux SocketCAN; `pip install` also installs `eclipse-zenoh` (used only by the teleoperation example) |
+| Runtime dependencies | **None.** The library uses only the Python standard library and Linux SocketCAN |
 
-Configure the CAN interface:
+The CAN interface must be brought up as **classic CAN at 1 Mbps with CAN FD disabled**. An interface left in CAN FD mode communicates with nothing at all, and that symptom is easily mistaken for a hardware fault.
 
-```bash
-sudo ip link set can0 down
-sudo ip link set can0 type can bitrate 1000000 fd off
-sudo ip link set can0 up
-```
-
-> `fd off` is not optional — this product uses classic CAN, not CAN FD.
-
-If you do not have the hardware yet, you can verify the software environment first on a virtual bus:
-
-```bash
-sudo modprobe vcan
-sudo ip link add dev vcan0 type vcan
-sudo ip link set up vcan0
-python examples/dry_run.py
-```
-
-> There is no real motor on the virtual bus, so **the enable step will time out**. This is **expected behavior**, not a fault.
-
-**If you only want to check whether the gripper is powered and responds**: you can skip the SDK and send a single frame with `can-utils`, which ships with Linux, to see whether there is any feedback. For the exact commands, see "Bus self-check without the SDK" in Appendix B of the Software Development Manual. This is the fastest way to tell whether the problem is no communication or no motion.
-
-For detailed software installation, interface usage, and examples, see the Software Development Manual.
+For the interface configuration commands, the SDK installation, the example scripts, and a bus self-check that does not use the SDK, see the Software Development Manual.
 
 ## Daily use and maintenance
 
 ### Basic motions
 
-If you use the example scripts shipped with the product, you can run them directly:
+**Grasping**: the gripper closes until it **contacts the object and is obstructed**, which is taken as a successful grip, and it holds position. The criterion is whether the fingers stop moving, so **gripping an object and reaching the stroke endpoint both count as a successful grip**; read the position to tell the two apart.
 
-| Script | Purpose |
-|------|------|
-| `examples/basic.py` | Basic opening and closing, and status readout |
-| `examples/slow_open.py` | Slow opening |
-| `examples/slow_close.py` | Slow closing |
-| `examples/cycle_test.py` | Cyclic open/close test |
-| `examples/can_diag.py` | Communication diagnostics |
-| `examples/dry_run.py` | Verification without hardware |
+> **Note**: **The gripping force parameter is not validated at all.** The shipped SDK converts a force value into a feedforward torque using a coefficient that has never been calibrated against a real load. Before force calibration is complete, **do not rely on the force parameter**; a pure position grasp needs no force value, and writing 0 asks for exactly that.
 
-**Grasping**: After you run the grasp function, the gripper closes until it **contacts the object and is obstructed**, which is taken as a successful grip, and it holds position.
+**Manual guidance**: to hold the gripper at a new position, put it in **zero gravity mode**; the motor then outputs no torque and you can push the fingers by hand. Leaving the mode holds the position at the moment you exit it.
 
-| Result | Meaning |
-|------|------|
-| Success | The fingers stop moving (they gripped the object, **or they hit the stroke endpoint**) |
-| Failure | The fingers are still moving when the set time elapses (**timeout**; usually means nothing was touched) |
-
-> **Note**: The criterion is whether the fingers stop moving. **Gripping an object and hitting the stroke endpoint both count as "stopped moving" and both report success** — so you cannot rely on the return value alone to distinguish "gripped it" from "hit the endpoint". To tell them apart, use the position reading.
->
-> **Note**: **The force parameter is currently not validated at all.** The shipped SDK converts the force value directly into a feedforward torque and sends it (the conversion coefficient is a nominal value never calibrated against a real load); **it neither checks whether force calibration has been completed nor refuses to execute**. Before force calibration is complete, **do not rely on the force parameter**; for pure position grasping, set the force parameter explicitly to 0. See Section 2.3.9 and Section 4.7.1 of the Software Development Manual.
-
-**Manual teaching**: When you need the gripper to hold at a new position, you can enter **zero gravity mode** (the SDK's `enter_zero_gravity()`): the motor then outputs no torque (`kp = kd = 0`) and you can push the fingers by hand. When you call `exit_zero_gravity()` to leave the mode, the SDK uses the `kp` / `kd` from the configuration to **hold the position at the moment of exit**.
-
-> **Note**: Zero gravity mode **does not itself hold position** — once you enter it, the fingers are free, and they stay wherever you let go; they do not return on their own. Position is held only at the moment you leave the mode. Also, `exit_zero_gravity()` **performs no range check**: even if you push the fingers beyond the calibrated endpoint, it will hold that position anyway and **will not report an error**. **Manual teaching must be supervised by a person on site.**
+> **Note**: Zero gravity mode **does not itself hold position** — once you enter it, the fingers are free, and they stay wherever you let go; they do not return on their own. Position is held only at the moment you leave the mode. Leaving the mode **performs no range check**: even if you push the fingers beyond the calibrated endpoint, it will hold that position anyway and **will not report an error**. **Manual guidance must be supervised by a person on site.**
 
 ### Routine checks
 
@@ -555,7 +516,7 @@ After any of the following, you **must recalibrate**:
 
 | Symptom | Possible cause | Remedy |
 |--------------------------|------------------------------------|--------------------------------------|
-| No communication at all | CAN interface not configured / CAN FD not disabled | Reconfigure as in Section 4.4 |
+| No communication at all | CAN interface not configured / CAN FD not disabled | Reconfigure the interface with CAN FD disabled |
 | | Terminating resistors missing | Fit one 120 Ω at each end of the bus |
 | | Loose cable | Check the connectors |
 | Status can be read but **the gripper does not move** | **The 24 V supply is not connected** | Connect 24 V (the most common cause) |
@@ -565,7 +526,7 @@ After any of the following, you **must recalibrate**:
 | | Motor overcurrent or overtemperature protection tripped | Stop and let it cool, then check the load |
 | The gripper stops at an endpoint and will not move | The target position is outside the calibrated range and is **silently clamped** to the endpoint | **The SDK does not report an error**; check the calibrated values and the target position |
 | Grasping always reports failure | The fingers are still moving at timeout — usually they never touched the object | Confirm the object is within the stroke range |
-| | The timeout is set too short | Increase the time parameter of `grasp()` |
+| | The timeout is set too short | Increase the grasp timeout |
 | Insufficient gripping force | **Force control has not yet completed factory calibration** | **Do not rely on the force parameter**; use position grasping or add a mechanical limit |
 | Abnormal noise or jamming during motion | Foreign matter on the guide rail / mechanical damage | Cut power and inspect; contact service |
 | Shuts down after running for a while | Overtemperature protection | Reduce the load or improve heat dissipation |
@@ -589,9 +550,9 @@ After any of the following, you **must recalibrate**:
 
 > **Note**: **`0x8` and `0x9` are very easy to mix up.** The correct order is **8 = overvoltage (OV), 9 = undervoltage (UV)**, not "low voltage first".
 >
-> **Note (source of this table)**: The full code table above comes from the **official protocol documentation of the Damiao motor (DM4310)** and is every code the driver can report. `get_error()` reads the raw **integer** value of that code; for text, call `describe_error()`, which gives the Chinese descriptions from the table above for `0x0`, `0x1`, `0x9`, `0xA`, `0xB`, and `0xC`, and displays all other codes as "unknown error (0xXX)", leaving you to interpret them from the table above.
+> **Note (source of this table)**: The full code table above comes from the **official protocol documentation of the Damiao motor (DM4310)** and is every code the driver can report. The gripper reports the code as a raw **integer**; the shipped SDK renders text for `0x0`, `0x1`, `0x9`, `0xA`, `0xB` and `0xC` only, and displays every other code as "unknown error (0xXX)", leaving you to interpret it from the table above.
 
-**If you cannot resolve the problem yourself**, record the following information and contact us: product model and serial number, a description of the symptom and how often it occurs, the host computer operating system version, and the output of the communication diagnostics script.
+**If you cannot resolve the problem yourself**, record the following information and contact us: product model and serial number, a description of the symptom and how often it occurs, and the host computer operating system version.
 
 ## FAQ and technical support
 
@@ -613,15 +574,7 @@ Q: Does the gripper release when power is cut? A: **Yes.** This product has **no
 
 Q: Must the 24 V supply be connected? A: **Yes.** With only USB-CAN connected, it can communicate and report status, but it **will not move**, and it reports undervoltage. That is normal, not a fault.
 
-Q: Why must `fd off` be added when configuring CAN? A: Because this product uses **classic CAN**. Configuring it as CAN FD makes **communication completely impossible** — and that symptom looks a lot like "24 V not connected", so it is easily misdiagnosed as a hardware fault.
-
-Q: Why do I receive nothing when I listen on the bus? A: **Feedback from this product is query-based**: the motor answers only after it receives a command frame. **Passive listening will never receive any frames**; you must send frames first.
-
-Q: The enable interface returns success, but the motor is actually not enabled? A: `enable()` **does validate** — after sending the enable frame it waits for feedback, confirms that the feedback is new and that the error code is within `0x0` / `0x1`, retries if it cannot read it, up to 5 times, and raises `HardwareError` if it still fails. So if `enable()` returns without raising an exception, the motor really is enabled. **But `disable()` does not validate** — it returns `True` as soon as the frame is sent, and you must read the status yourself to confirm that disabling succeeded.
-
-Q: How do I make the gripper grasp something? A: Use `grasp(force_n=0)`. **Set the force parameter explicitly to 0** — the force parameter is not validated at all, and a non-zero value is converted directly into a feedforward torque applied to the motor; until force calibration is complete, the magnitude of that torque is not guaranteed. Writing 0 gives pure position grasping.
-
-Q: How do I use the emergency stop? A: On the software side, use `stop()` — it sends a zero-torque frame to stop the fingers, **does not disable the motor and does not latch any fault**, and you can keep sending commands afterwards; if the motor is not enabled, it does nothing. For a power-level stop, use `disable()`. **The emergency stop must be implemented in hardware**: cut the 24 V drive power (note that this product has no power-off self-locking, so the fingers will release when you cut it), or wire an independent emergency-stop circuit outside the host computer.
+Q: How do I stop the gripper? A: **The emergency stop must be implemented in hardware**: cut the 24 V drive power (note that this product has no power-off self-locking, so the fingers will release when you cut it), or wire an independent emergency-stop circuit outside the host computer. What the software can do on its own is described in the Software Development Manual.
 
 Q: What does the "to be measured" marker in the manual mean? A: It means **the item definitely exists and must be measured, but the value has not been measured yet**. **A missing entry does not mean the item does not exist.** Until it is measured, do not use these values for selection or safety assessment.
 
