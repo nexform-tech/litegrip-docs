@@ -28,7 +28,7 @@ The documentation covers:
 
 | Component | Repository | Latest version | Released |
 | --- | --- | --- | --- |
-| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v0.5.1 | 2026-09-29 |
+| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v0.9.1 | 2026-09-29 |
 | C++ SDK | [litegrip-cpp](https://github.com/nexform-tech/litegrip-cpp) | v0.1.0 | 2026-09-28 |
 | ROS 1 driver | [litegrip-ros1](https://github.com/nexform-tech/litegrip-ros1) | Not released | — |
 | ROS 2 driver | [litegrip-ros2](https://github.com/nexform-tech/litegrip-ros2) | v0.1.0 | 2026-09-28 |
@@ -37,7 +37,12 @@ The documentation covers:
 | PyBullet simulation | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.3.0 | 2026-09-29 |
 | Isaac Sim simulation | [litegrip-isaacsim](https://github.com/nexform-tech/litegrip-isaacsim) | v1.0.1 | 2026-09-27 |
 | URDF model | [litegrip-urdf](https://github.com/nexform-tech/litegrip-urdf) | Not released | — |
-| Host application | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.5.0 | 2026-09-29 |
+| Host application | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.6.0 | 2026-09-29 |
+
+**Two rows say "Not released", and they mean different things.** `litegrip-ros1` is a placeholder:
+the repository is initialized, but its source code, packaging and documentation have not landed
+yet, so there is nothing to install. `litegrip-urdf` holds the model, its launch files and its
+documentation, and simply has no tag yet — take it from the default branch.
 
 **Every release in this table is source only.** None of these repositories attaches a compiled
 package, so there is no per-platform binary to download. For a component's version history, open its

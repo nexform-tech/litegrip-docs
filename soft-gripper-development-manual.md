@@ -956,7 +956,7 @@ python3 examples/teleop.py --mode slave  --channel can0 --host 192.168.1.20
 | `--no-align` | off | Skip the one-shot align to the first frame |
 | `--dry-run` | off | Print the resolved plan and exit without touching hardware |
 
-> **Note**: `examples/teleop.py` is the **only** example script in the SDK repository. Earlier revisions of this manual listed fifteen more (`basic.py`, `cycle_test.py`, `can_diag.py`, and so on); those files do not exist. **Do not go looking for them.**
+> **Note**: The SDK repository ships **two** example scripts: `examples/teleop.py` above, and `examples/trajectory.py`, which records a hand-taught motion and replays it. Earlier revisions of this manual listed fifteen more (`basic.py`, `cycle_test.py`, `can_diag.py`, and so on); those files do not exist. **Do not go looking for them.**
 
 ## Driving the bus directly (litegrip.can)
 

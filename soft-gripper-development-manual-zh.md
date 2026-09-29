@@ -956,7 +956,7 @@ python3 examples/teleop.py --mode slave  --channel can0 --host 192.168.1.20
 | `--no-align` | 关 | 跳过对齐到首帧的那一次动作 |
 | `--dry-run` | 关 | 打印解析出的方案后退出，不碰硬件 |
 
-> **注意**：`examples/teleop.py` 是 SDK 仓库里**唯一**的示例脚本。本手册早前的版本还列了另外十五个（`basic.py`、`cycle_test.py`、`can_diag.py` 等）；那些文件并不存在。**不用去找。**
+> **注意**：SDK 仓库自带**两个**示例脚本：上文介绍的 `examples/teleop.py`，以及 `examples/trajectory.py` —— 后者录制手动示教的轨迹并回放。本手册早前的版本还列了另外十五个（`basic.py`、`cycle_test.py`、`can_diag.py` 等）；那些文件并不存在。**不用去找。**
 
 ## 直接驱动总线（litegrip.can）
 

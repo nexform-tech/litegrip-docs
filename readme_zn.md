@@ -23,7 +23,7 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 
 | 组件 | 仓库 | 最新版本 | 发布日期 |
 | --- | --- | --- | --- |
-| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v0.5.1 | 2026-09-29 |
+| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v0.9.1 | 2026-09-29 |
 | C++ SDK | [litegrip-cpp](https://github.com/nexform-tech/litegrip-cpp) | v0.1.0 | 2026-09-28 |
 | ROS 1 驱动 | [litegrip-ros1](https://github.com/nexform-tech/litegrip-ros1) | 暂无发布 | — |
 | ROS 2 驱动 | [litegrip-ros2](https://github.com/nexform-tech/litegrip-ros2) | v0.1.0 | 2026-09-28 |
@@ -32,7 +32,9 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 | PyBullet 仿真 | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.3.0 | 2026-09-29 |
 | Isaac Sim 仿真 | [litegrip-isaacsim](https://github.com/nexform-tech/litegrip-isaacsim) | v1.0.1 | 2026-09-27 |
 | URDF 模型 | [litegrip-urdf](https://github.com/nexform-tech/litegrip-urdf) | 暂无发布 | — |
-| 上位机 | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.5.0 | 2026-09-29 |
+| 上位机 | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.6.0 | 2026-09-29 |
+
+**表中有两行写的是"暂无发布"，但两者含义不同。** `litegrip-ros1` 只是一个占位仓库：仓库已初始化，但源码、打包与文档都还没落地，目前没有任何可安装的内容。`litegrip-urdf` 则已有模型、launch 文件与文档，只是还没打 tag —— 请从默认分支获取。
 
 **上表的发布目前都只提供源码。** 这些仓库都没有挂编译好的安装包，所以没有按平台下载的二进制包。要查某个组件的完整版本历史，请打开它的 Releases 页面。
 
