@@ -93,6 +93,24 @@ def check(name):
                 f"whose heading reads {anchors[slug]!r}"
             )
 
+    # Cross-references in the prose break exactly the way contents entries do,
+    # and nothing else in this repository checks them. The contents block is
+    # skipped here because the loop above already reports its problems.
+    fence = False
+    for index, line in enumerate(lines):
+        stripped = line.rstrip()
+        if stripped.startswith("```"):
+            fence = not fence
+            continue
+        if fence or contents_at <= index < ends_at:
+            continue
+        for text, slug in re.findall(r"\[([^\]]+)\]\(#([^)]+)\)", stripped):
+            if slug not in anchors:
+                problems.append(
+                    f"{name}:{index + 1}: the link {text!r} points at #{slug}, "
+                    f"which is not a heading"
+                )
+
     # Every top-level heading except the document title, and every second-level
     # heading except the contents heading itself, must appear in the list. An
     # entry is nested once its heading sits inside a top-level section; the
