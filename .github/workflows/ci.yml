@@ -42,6 +42,9 @@ jobs:
       - name: Check handbook tables of contents
         run: python3 scripts/check_toc.py
 
+      - name: Check the two language editions are aligned
+        run: python3 scripts/check_editions.py
+
       - name: Validate repository standards
         run: |
           set -euo pipefail
