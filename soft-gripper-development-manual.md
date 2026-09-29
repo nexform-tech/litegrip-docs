@@ -55,11 +55,11 @@ This document is for **integrators** and explains SDK installation, interface us
 
 ### Overview
 
-This section describes the safety principles and standards you must follow when using the LiteGrip gripper and system. Before installing or using it, you must read this document and the Safety Manual carefully; content marked with a warning symbol must be understood and strictly followed. Gripper systems present potential hazards during operation, including gripping, collision, and falling; users must fully understand the operating risks and use the SDK for development and debugging only after training.
+This section describes the safety principles and standards you must follow when using the LiteGrip gripper and system. Before installing or using it, you must read this document and the Safety Manual carefully; content that carries a severity label must be understood and strictly followed. Gripper systems present potential hazards during operation, including gripping, collision, and falling; users must fully understand the operating risks and use the SDK for development and debugging only after training.
 
-### Safety symbols
+### Severity labels
 
-Safety notices in the other sections of this document use the following warning symbols (the illustrations on the labels shipped with the product govern):
+Safety notices in the other sections of this document name their severity with the labels below; the matching graphical symbols are on the labels shipped with the product:
 
 - Danger: for hazardous situations that may lead to death or serious injury, or severe equipment damage.
 - Warning: for hazardous situations that, if not avoided, could lead to death or serious injury, or severe equipment damage.
