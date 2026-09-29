@@ -43,11 +43,11 @@ The units of physical quantities used in this document and in the SDK are as fol
 
 ### Overview
 
-This section describes the safety principles and standards you must follow when using the LiteGrip gripper and its system. Before installation and use, you must read this manual carefully, and you must understand and strictly follow any content marked with a warning symbol. Gripper systems carry potential hazards such as gripping, collision, and falling; users must fully recognize the operating risks and use the SDK or control software only after training.
+This section describes the safety principles and standards you must follow when using the LiteGrip gripper and its system. Before installation and use, you must read this manual carefully, and you must understand and strictly follow any content that carries a severity label. Gripper systems carry potential hazards such as gripping, collision, and falling; users must fully recognize the operating risks and use the SDK or control software only after training.
 
-### Safety symbols
+### Severity labels
 
-Safety notes in other sections of this manual use the symbols below (for the graphics, refer to the labels shipped with the product):
+Safety notes in other sections of this manual name their severity with the labels below; the matching graphical symbols are on the labels shipped with the product:
 
 - Danger: for hazardous situations that may cause death, personal injury, or severe equipment damage.
 - Warning: for hazardous situations that, if not avoided, could cause death, personal injury, or severe equipment damage.
