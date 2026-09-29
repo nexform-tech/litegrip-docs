@@ -7,15 +7,15 @@ site for the **LiteGrip lightweight robotic gripper series**.
 
 ## Handbooks
 
-This repository holds two handbooks, each in an English and a Chinese edition.
-The unsuffixed filename is the English edition and `-zh` is the Chinese edition;
-the two editions are kept line for line in step, so a change to one is a change
-to both.
+This repository holds two handbooks. Each is published in an English and a
+Chinese edition, and the two editions are kept line for line in step, so a
+change to one is a change to both. Every handbook opens with a language switch;
+use it to move between the editions.
 
-| Handbook | English | Chinese | Reader |
-| --- | --- | --- | --- |
-| Product Manual | [product-manual.md](product-manual.md) | [product-manual-zh.md](product-manual-zh.md) | Users and installers — specifications, electrical interface, installation, maintenance, troubleshooting |
-| Software Development Manual | [soft-gripper-development-manual.md](soft-gripper-development-manual.md) | [soft-gripper-development-manual-zh.md](soft-gripper-development-manual-zh.md) | Integrators — SDK installation, interface usage and preconditions, the CAN protocol |
+| Handbook | Reader |
+| --- | --- |
+| [Product Manual](product-manual.md) | Users and installers — specifications, electrical interface, installation, maintenance, troubleshooting |
+| [Software Development Manual](soft-gripper-development-manual.md) | Integrators — SDK installation, interface usage and preconditions, the CAN protocol |
 
 Read the Product Manual first: it covers the gripper's specifications, wiring,
 installation, maintenance and troubleshooting, and assumes no knowledge of the

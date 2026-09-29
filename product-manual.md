@@ -1,5 +1,7 @@
 # Preface
 
+[English](product-manual.md) | [简体中文](product-manual-zh.md)
+
 LiteGrip is an adaptive two-finger parallel gripper that NEXFORM ROBOTICS designed for research and education, AI robot development, and lightweight industrial automation. It uses direct motor drive and an adaptive grasping mechanism, with an effective stroke of 87.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps), and ships with a Python SDK, the CAN Communication Protocol Manual, and the calibration file for this unit. It suits tasks such as grasping, transferring, loading and unloading, sorting, and algorithm validation.
 
 ## Hardware components
