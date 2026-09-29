@@ -6,6 +6,37 @@ LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, desig
 
 This document is for **integrators** and explains SDK installation, interface usage, parameters and return values, exceptions, the **precondition** of each interface, and the underlying CAN communication protocol. For product specification values (stroke, velocity, torque, temperature, electrical parameters, and so on), see the Product Manual and the Parameter Document; for the basis of the safety design, see the Safety Manual.
 
+## Contents
+
+- [Hardware components](#hardware-components)
+- [Units](#units)
+- [Safety](#safety)
+- [SDK usage guide](#sdk-usage-guide)
+  - [Overview](#overview-1)
+  - [Library dependencies](#library-dependencies)
+  - [Python library installation and usage (primary path)](#python-library-installation-and-usage-primary-path)
+  - [Other languages and software ecosystem](#other-languages-and-software-ecosystem)
+  - [FAQ and technical support](#faq-and-technical-support)
+- [CAN communication protocol](#can-communication-protocol)
+  - [Physical layer and nodes](#physical-layer-and-nodes)
+  - [Frame types](#frame-types)
+  - [MIT control frame](#mit-control-frame)
+  - [Command frame](#command-frame)
+  - [Status refresh frame](#status-refresh-frame)
+  - [Parameter frames and registers](#parameter-frames-and-registers)
+  - [Feedback frames and error codes](#feedback-frames-and-error-codes)
+  - [Communication timing](#communication-timing)
+  - [Typical interaction sequences](#typical-interaction-sequences)
+- [Appendix A: Status, error codes, and exceptions](#appendix-a-status-error-codes-and-exceptions)
+  - [Status and error fields](#status-and-error-fields)
+  - [Python exception types](#python-exception-types)
+  - [Error handling guidance](#error-handling-guidance)
+- [Appendix B: Communication and connection troubleshooting](#appendix-b-communication-and-connection-troubleshooting)
+  - [CAN interface and endpoint information](#can-interface-and-endpoint-information)
+  - [CAN interface configuration](#can-interface-configuration)
+  - [Bus self-check without the SDK](#bus-self-check-without-the-sdk)
+  - [Connection troubleshooting](#connection-troubleshooting)
+
 ## Hardware components
 
 | No. | Device | Description |

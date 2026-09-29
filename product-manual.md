@@ -4,6 +4,33 @@
 
 LiteGrip is an adaptive two-finger parallel gripper that NEXFORM ROBOTICS designed for research and education, AI robot development, and lightweight industrial automation. It uses direct motor drive and an adaptive grasping mechanism, with an effective stroke of 87.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps), and ships with a Python SDK, the CAN Communication Protocol Manual, and the calibration file for this unit. It suits tasks such as grasping, transferring, loading and unloading, sorting, and algorithm validation.
 
+## Contents
+
+- [Hardware components](#hardware-components)
+- [Units](#units)
+- [Safety](#safety)
+- [Technical specifications](#technical-specifications)
+  - [General specifications](#general-specifications)
+  - [Stroke and position parameters](#stroke-and-position-parameters)
+  - [Grip and load capacity](#grip-and-load-capacity)
+  - [Motion performance](#motion-performance)
+  - [Electrical specifications](#electrical-specifications)
+  - [Mechanical and environmental specifications](#mechanical-and-environmental-specifications)
+  - [Selection guidance](#selection-guidance)
+- [Electrical interface](#electrical-interface)
+  - [Electrical safety](#electrical-safety)
+  - [Interface overview](#interface-overview)
+  - [Power supply](#power-supply)
+  - [CAN bus](#can-bus)
+- [Installation and usage guide](#installation-and-usage-guide)
+  - [Overview](#overview-1)
+  - [Appearance and parts](#appearance-and-parts)
+  - [Unboxing and installation](#unboxing-and-installation)
+  - [Host environment setup](#host-environment-setup)
+  - [Daily use and maintenance](#daily-use-and-maintenance)
+  - [Troubleshooting](#troubleshooting)
+  - [FAQ and technical support](#faq-and-technical-support)
+
 ## Hardware components
 
 The composition of the standard delivery kit and the accompanying equipment is as follows (for the included accessories and the packing list, refer to the Packing List shipped with the product):
