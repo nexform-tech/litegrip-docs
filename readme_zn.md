@@ -1,5 +1,7 @@
 # litegrip-docs
 
+[English](README.md) | [简体中文](readme_zn.md)
+
 LiteGrip 轻量型夹爪系列的**产品文档源仓库**，构建并发布为公开文档站点。
 
 ## 手册
@@ -12,8 +14,6 @@ LiteGrip 轻量型夹爪系列的**产品文档源仓库**，构建并发布为�
 | 软件开发手册 | [soft-gripper-development-manual-zh.md](soft-gripper-development-manual-zh.md) | [soft-gripper-development-manual.md](soft-gripper-development-manual.md) | 集成工程师 —— SDK 安装、接口用法与前置条件、CAN 通信协议 |
 
 先读《产品手册》：它讲清夹爪的规格、接线、安装、维护与故障排查，不要求你了解通信协议。要自己写控制程序时，再读《软件开发手册》：它说明 SDK 的安装、各接口的参数与返回值、每个接口的**前置条件**、异常，以及底层 CAN 通信协议。
-
-本文件的中文版就是你现在读的这一份，英文版见 [README.md](README.md)。
 
 ## 仓库定位
 

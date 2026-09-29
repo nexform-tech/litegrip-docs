@@ -1,5 +1,7 @@
 # litegrip-docs
 
+[English](README.md) | [简体中文](readme_zn.md)
+
 Product documentation source, built and published as the public documentation
 site for the **LiteGrip lightweight robotic gripper series**.
 
@@ -21,8 +23,6 @@ communication protocol. Read the Software Development Manual when you write your
 own control program: it covers SDK installation, each interface's parameters and
 return values, its **preconditions**, exceptions, and the underlying CAN
 protocol.
-
-A Chinese edition of this file is at [readme_zn.md](readme_zn.md).
 
 ## Scope
 
