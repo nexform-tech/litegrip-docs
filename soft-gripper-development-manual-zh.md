@@ -32,6 +32,7 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
   - [异常与错误处理](#异常与错误处理)
   - [运动调参（MotionConfig）](#运动调参motionconfig)
   - [遥操作（主从）](#遥操作主从)
+  - [轨迹录制与回放](#轨迹录制与回放)
   - [直接驱动总线（litegrip.can）](#直接驱动总线litegripcan)
   - [核心 API 速查](#核心-api-速查)
 - [二次开发](#二次开发)
@@ -179,7 +180,7 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 
 ## 概述
 
-LiteGrip 的 Python SDK 是 `litegrip` 包。它封装达妙 **DM-J4310-2EC** 电机的 MIT 协议，提供连接、使能、运动、抓取、手动示教、标定、遥操作与状态读取的接口。
+LiteGrip 的 Python SDK 是 `litegrip` 包。它封装达妙 **DM-J4310-2EC** 电机的 MIT 协议，提供连接、使能、运动、抓取、手动示教、标定、遥操作、轨迹录制与回放、状态读取的接口。
 
 **SDK 只做两件事：把毫米换算成电机角度、把牛顿换算成前馈力矩，然后按固定周期把 MIT 帧发到总线上。** 它不做越界检查，不做故障锁存，也不校验力标定。
 
@@ -215,6 +216,8 @@ LiteGrip 的 Python SDK 是 `litegrip` 包。它封装达妙 **DM-J4310-2EC** �
 | `litegrip.constants` | `GripperParams`、`UnitConversion`、`ErrorCode`、`DefaultParams`、`describe_error` |
 | `litegrip.exceptions` | 六个异常类加基类 |
 | `litegrip.teleop` | `GripperTeleop` 与各传输实现 |
+| `litegrip.trajectory` | `Trajectory`、`TrajectoryRecorder`、`TrajectoryPlayer` —— 手动示教的动作，录制与回放 |
+| `litegrip.zenoh_link` | 遥操作用的 zenoh 传输。惰性导入，需要 `pip install 'litegrip[zenoh]'` |
 | `litegrip.can` | 原始 SocketCAN 传输与达妙电机编解码，多电机机架用 |
 
 ## 库相关依赖
@@ -774,6 +777,8 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 | `load_calibration` / `save_calibration` / `load_template` | — | — | — | 纯文件 I/O |
 | `read_param` | ● | — | — | |
 | `teleop_start` | ● | ● | **●** | 会调 `check_ready(config)`；见 [遥操作（主从）](#遥操作主从) |
+| `record` / `record_start` / `play` / `play_start` | ● | ● | **●** | 未标定时抛 `TrajectoryError` —— 归一化开口会变成猜的；见[轨迹录制与回放](#轨迹录制与回放) |
+| `record_stop` / `play_stop` / `trajectory_status` | — | — | — | 它们作用于已在运行的会话，不做任何检查 |
 
 **图例**：● = 必须满足；— = 不需要。
 
@@ -788,12 +793,14 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 | `LiteGripError` | 基类；带 `message` 与可选的 `error_code` |
 | `CommError` | CAN 总线读或写失败 |
 | `ConnectError` | CAN 接口不可用，或电机不应答 |
-| `CommandError` | 电机拒绝命令，或参数越界 |
+| `CommandError` | 高层动作在未标定或行程为零的夹爪上运行、命令帧发不出去，或 `load_calibration()` 收到非法模板名、同时给了 `path` 与 `template` |
 | `CANTimeoutError` | 总线上没有响应 |
 | `HardwareError` | 达妙故障码：欠压、过流、过温 |
 | `NotInitializedError` | 需要已连接 / 已使能的方法在未满足时被调用 |
 
-**遥操作另有四个**，定义在 `litegrip.teleop`，同样派生自 `LiteGripError`：`TeleopError`、`TeleopBusyError`（已在运行时又启动）、`TeleopNotActiveError`（操作需要活动会话）、`TeleopNotReady`（夹爪还不能安全遥操作）。**合计 11 个类。**
+**遥操作另有四个**，定义在 `litegrip.teleop`，同样派生自 `LiteGripError`：`TeleopError`、`TeleopBusyError`（已在运行时又启动）、`TeleopNotActiveError`（操作需要活动会话）、`TeleopNotReady`（夹爪还不能安全遥操作）。
+
+**轨迹录制与回放另有六个**，定义在 `litegrip.trajectory`：`TrajectoryError`、`TrajectoryBusyError`、`TrajectoryNotActiveError`、`TrajectoryEmptyError`、`TrajectoryRecordingError`、`TrajectoryFormatError`。**合计 17 个类**，全部派生自 `LiteGripError` —— 完整表见 [Python 异常类型](#python-异常类型)。
 
 ```python
 from litegrip import (
@@ -816,7 +823,7 @@ except LiteGripError as e:
 
 > **注意**：**钳位与跳过的力参数不会抛任何异常。** 超出行程的目标被静默钳位，越界的 `kp` / `kd` / `tau` 被静默饱和，未校验的 `force_n` 照常下发。**只捕异常的程序，这三样一个都发现不了。**
 >
-> **注意**：**`CommandError` 定义了，但实际中很少抛出**——电机拒绝命令目前并没有归到它。
+> **注意**：**`CommandError` 是标定检查，不是通用的"命令出错"。** 配置未标定或行程为零、命令帧发不出去时由动作层抛出；`load_calibration()` 遇到非法模板名，或同时给了 `path` 与 `template` 时也抛它。**电机自己拒绝命令并不走这个异常**——那会体现在状态帧的错误码里（见[反馈帧与错误码](#反馈帧与错误码)）。
 
 ## 运动调参（MotionConfig）
 
@@ -956,7 +963,72 @@ python3 examples/teleop.py --mode slave  --channel can0 --host 192.168.1.20
 | `--no-align` | 关 | 跳过对齐到首帧的那一次动作 |
 | `--dry-run` | 关 | 打印解析出的方案后退出，不碰硬件 |
 
-> **注意**：SDK 仓库自带**两个**示例脚本：上文介绍的 `examples/teleop.py`，以及 `examples/trajectory.py` —— 后者录制手动示教的轨迹并回放。本手册早前的版本还列了另外十五个（`basic.py`、`cycle_test.py`、`can_diag.py` 等）；那些文件并不存在。**不用去找。**
+> **注意**：SDK 仓库自带**两个**示例脚本：上文介绍的 `examples/teleop.py`，以及 `examples/trajectory.py` —— 后者见[轨迹录制与回放](#轨迹录制与回放)。本手册早前的版本还列了另外十五个（`basic.py`、`cycle_test.py`、`can_diag.py` 等）；那些文件并不存在。**不用去找。**
+
+## 轨迹录制与回放
+
+用手教一遍的动作可以录下来，之后反复重放。录制时电机进入零重力，你可以用手把夹爪推过接近、夹紧、松开的全过程；回放则把录到的开口序列重新作为 MIT 命令帧发出去。
+
+```python
+from litegrip import LiteGrip
+
+with LiteGrip("can0") as gripper:
+    gripper.load_calibration()
+    gripper.enable()
+
+    taught = gripper.record(5.0)   # 手动示教 5 s，期间夹爪是松的
+    taught.save("pick")            # ~/.litegrip/trajectories/pick.lgt
+    gripper.play(taught)           # 重放一遍
+```
+
+| 方法 | 签名 | 说明 |
+|------|------|------|
+| `record()` | `record(duration_s, rate_hz=100.0, zero_gravity=True) -> Trajectory` | 阻塞式手动示教，持续 `duration_s` 秒 |
+| `record_start()` | `record_start(rate_hz=100.0, zero_gravity=True, max_samples=None) -> dict` | 后台录制；返回第一份 `trajectory_status()` 快照 |
+| `record_stop()` | `record_stop(allow_empty=False) -> Trajectory` | 停止并返回录制结果 |
+| `play()` | `play(trajectory, speed=1.0, kp=None, kd=None, loop=False, align=True) -> dict` | 阻塞式回放；`loop` 必须为 `False` |
+| `play_start()` | `play_start(trajectory, speed=1.0, kp=None, kd=None, loop=False, align=True) -> dict` | 后台回放 |
+| `play_stop()` | `play_stop(timeout=2.0)` | 停止回放，并让夹爪保持在最后一个目标位置 |
+| `trajectory_status()` | `trajectory_status() -> dict` | 会话快照，或 `{"active": False}` |
+
+**存的是什么，为什么能跨机使用。** 每个采样点存的是按**录制时那台**夹爪行程归一化后的开口 —— 无量纲、无方向，与遥操作放到线上的量完全一样。每台夹爪的零点、方向和标定各不相同，原始角度换到另一台上没有意义；因此在正装夹爪上示教的轨迹，可以在反装的夹爪上回放。录到的角度、速度和力矩只作诊断用途保留。
+
+`Trajectory.save("pick")` 写到 `~/.litegrip/trajectories/pick.lgt`；带路径分隔符的名字按原样当路径用，`LITEGRIP_TRAJ_DIR` 可以改这个目录。`Trajectory.load("pick")` 读回来。文件是紧凑二进制，带 8 字节魔数头（`LGRTRJ01`，格式版本 1）；文件长度与头部记录的采样数不符时，会以 `TrajectoryFormatError` 拒绝，而不是解析出半条轨迹。
+
+> **不要**指望回放能复现**力**。回放下发的是位置：开口会被夹到本机标定行程内，录到的力矩**从不**前馈，所以对着物体录下的夹紧动作，回放出来是一条位置轨迹，用当前的 `kp` 去压。**你教进去的夹持力不会被保留。** 需要力的时候，回放完再调一次 `grasp(force_n=...)`。
+
+> **不要**在 `record()` 期间离开现场，也不要在这期间从调用方驱动夹爪。零力矩帧由录制器自己发，整个录制过程中夹爪不夹持任何东西，夹在中间的东西会掉。**请始终用手扶着夹爪。**
+
+> **注意**：**要录制"程序跑出来"的动作，就别开零重力。** `record_start(zero_gravity=False)` 只读状态，调用方可以从另一个线程跑 `grasp()` 或一段运动序列，把它录下来。
+
+> **注意**：**录制、回放与遥操作三者互斥。** 三者都要独占 CAN 收发，开始第二个会抛 `TeleopBusyError` 或 `TrajectoryBusyError`；`disconnect()` 会停掉正在跑的那一个。录制和回放还都要求已加载标定，否则抛 `TrajectoryError` —— 归一化开口必须用**本机**行程换算回来。
+
+> **注意**：**阻塞式 `play()` 返回时只发了一帧保持帧。** 帧停止后约 100 ms，电机会自锁报通信丢失故障，所以下一个动作要紧接着发；或者用 `play_start(loop=True)` 配 `play_stop()` 做一段能持续的保持。只有一个采样点的轨迹就是一个位姿、没有可重复的过程，循环它等于保持那个开口。
+
+**`trajectory_status()` 的键。** `active`、`kind`（`"record"` 或 `"play"`）、`samples`、`error` 始终存在。录制时多出 `rate_hz`、`zero_gravity`、`loop_hz`；回放时多出 `frames`、`speed`、`loop`、`completed`、`openness`、`loop_hz`。
+
+**可运行示例。** `examples/trajectory.py` 把同一套东西搬到命令行：
+
+```bash
+python3 examples/trajectory.py --record 5 --save pick   # 手动示教后保存
+python3 examples/trajectory.py --list                   # 不需要接硬件
+python3 examples/trajectory.py --play pick --repeat 3
+```
+
+| 选项 | 默认值 | 含义 |
+|------|------|------|
+| `--record` | — | 手动示教这么多秒；期间夹爪是松的 |
+| `--play` | — | 回放已保存的轨迹（裸名字，或 `.lgt` 文件路径） |
+| `--list` | 关 | 列出已保存的轨迹后退出；不需要硬件 |
+| `--save` | — | 用这个名字保存录制结果（默认只显示、不保存） |
+| `--channel` / `--can-id` | `can0` / `0x08` | CAN 接口与电机 ID |
+| `--mount` | — | 加载 `normal`/`reverse` 模板，替代本通道的标定 |
+| `--rate` | 100.0 | 录制时的采样率 |
+| `--speed` | 1.0 | 回放速度倍率；0.5 为半速 |
+| `--kp` / `--kd` | 取配置值 | 回放的刚度与阻尼 |
+| `--no-align` | 关 | 不先移动到首个采样点再跟随 |
+| `--repeat` | 1 | 回放这么多遍 |
+| `--dry-run` | 关 | 打印解析出的方案后退出，不碰硬件 |
 
 ## 直接驱动总线（litegrip.can）
 
@@ -986,6 +1058,7 @@ python3 examples/teleop.py --mode slave  --channel can0 --host 192.168.1.20
 | **标定** | `calibrate()`、`calibrate_guided()`、`calibrate_manual()`、`save_calibration()`、`load_calibration()`、`load_template()`、`list_templates()` |
 | **状态** | `get_state()`、`poll()`、`get_position()`、`get_position_rad()`、`get_force()`、`get_torque()`、`get_error()`、`get_temperature()`、`get_info()`、`is_moving()`、`is_grasped()`、`wait_for_ready()` |
 | **遥操作** | `teleop_start()`、`teleop_stop()`、`teleop_status()` |
+| **轨迹** | `record()`、`record_start()`、`record_stop()`、`play()`、`play_start()`、`play_stop()`、`trajectory_status()` |
 | **专家** | `read_param()`、`send_mit_frame()`、`litegrip.can` 子包 |
 
 **公开导出列表**（`litegrip/__init__.py` 的 `__all__`）：
@@ -1015,6 +1088,13 @@ from litegrip import (
     check_ready, clamp_to_calibrated,
     DEFAULT_GRIP_ID, DEFAULT_GRIP_PORT, DEFAULT_DQ_MAX, FRAME_SIZE,
     encode_frame, decode_frame, teleop_topic,
+    # teleoperation — zenoh link (resolved lazily; needs litegrip[zenoh])
+    ZenohTeleopTransport, Listener, Connector, LatestSlot,
+    # trajectory record and replay
+    Trajectory, TrajectorySample, TrajectoryRecorder, TrajectoryPlayer,
+    trajectory_dir, resolve_path, DEFAULT_RATE_HZ,
+    TrajectoryError, TrajectoryBusyError, TrajectoryNotActiveError,
+    TrajectoryEmptyError, TrajectoryRecordingError, TrajectoryFormatError,
     # subpackages
     can,
 )
@@ -1581,7 +1661,7 @@ tau_out = kp · (q_target − q_actual) + kd · (dq_target − dq_actual) + tau
 
 ## Python 异常类型
 
-SDK 共有 **11 个**异常类，全部继承自 `LiteGripError`：其中 **7 个**在 `litegrip.exceptions`，**4 个**在 `litegrip.teleop`。
+SDK 共有 **17 个**异常类，全部继承自 `LiteGripError`：其中 **7 个**在 `litegrip.exceptions`，**4 个**在 `litegrip.teleop`，**6 个**在 `litegrip.trajectory`。
 
 | 异常 | 基类 | 含义 |
 |------|------|------|
@@ -1596,8 +1676,14 @@ SDK 共有 **11 个**异常类，全部继承自 `LiteGripError`：其中 **7 �
 | `TeleopBusyError` | `TeleopError` | 会话已在运行时又调用了 `teleop_start()` |
 | `TeleopNotActiveError` | `TeleopError` | 某个操作需要活动的遥操作会话 |
 | `TeleopNotReady` | `TeleopError` | 夹爪还不能安全遥操作（未标定、行程为零，或 `rad_to_mm == 0`） |
+| `TrajectoryError` | `LiteGripError` | 轨迹异常的基类；夹爪未标定时也抛它 —— 那时归一化开口只能是猜的 |
+| `TrajectoryBusyError` | `TrajectoryError` | 已有会话（遥操作、录制、回放）在跑时又启动了录制或回放 |
+| `TrajectoryNotActiveError` | `TrajectoryError` | 没有在录制时调用了 `record_stop()` |
+| `TrajectoryEmptyError` | `TrajectoryError` | 录制或回放面对的是零个采样点 |
+| `TrajectoryRecordingError` | `TrajectoryError` | 采样线程已死，或定时录制没有采满 —— 残缺的录制绝不会当成完整的返回 |
+| `TrajectoryFormatError` | `TrajectoryError` | 字节流不是合法的轨迹文件（魔数、版本、长度或采样值不合法） |
 
-> **注意**：那四个遥操作异常在 `litegrip.teleop` 里，要从那里导入，不是从 `litegrip`。越界目标被钳制、力参数不校验，这两件事都不会抛异常（详见 [运动控制（开合与位置）](#运动控制开合与位置) 与 [抓取与力控](#抓取与力控)）。
+> **注意**：那四个遥操作异常在 `litegrip.teleop` 里，那六个轨迹异常在 `litegrip.trajectory` 里；这十个都从 `litegrip` 转出，所以 `from litegrip import TrajectoryFormatError` 可用。越界目标被钳制、力参数不校验，这两件事都不会抛异常（详见 [运动控制（开合与位置）](#运动控制开合与位置) 与 [抓取与力控](#抓取与力控)）。
 
 ## 错误处理建议
 
@@ -1606,7 +1692,7 @@ SDK 共有 **11 个**异常类，全部继承自 `LiteGripError`：其中 **7 �
 3. `CommError`：检查线缆、终端电阻、CAN FD 设置。
 4. `CANTimeoutError`：检查 24 V 是否接通；检查是否只监听未发送。
 5. `HardwareError`：按错误码逐项排查；**过温与过流应先停机冷却，再排查负载**。使能失败时先确认 24 V 已接通、`ERR` 不是 `0x9`。读到"未知错误"说明驱动器报的是 SDK 不解析的故障码，请对照驱动器**指示灯**判读。
-6. `CommandError`：多为未加载标定就调用了 `open()` / `close()` / `grasp()`，也可能是行程为零。先检查 `config.calibrated`，再跑一次标定。
+6. `CommandError`：动作层的标定检查。先看 `config.calibrated` 是否已加载，以及两个端点是否不同；如果是从 `load_calibration()` 抛出来的，检查模板名，以及 `path` / `template` 是否只给了一个。
 
 > **注意**：**位置越界、力参数未标定这两种情况都不会抛异常。** 不要指望用 `try/except` 捕获"越界"，必须自己先判断目标值。
 
