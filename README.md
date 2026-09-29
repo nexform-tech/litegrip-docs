@@ -3,8 +3,26 @@
 Product documentation source, built and published as the public documentation
 site for the **LiteGrip lightweight robotic gripper series**.
 
-> **Status:** repository initialized. Source code, packaging and documentation
-> have not landed yet.
+## Handbooks
+
+This repository holds two handbooks, each in an English and a Chinese edition.
+The unsuffixed filename is the English edition and `-zh` is the Chinese edition;
+the two editions are kept line for line in step, so a change to one is a change
+to both.
+
+| Handbook | English | Chinese | Reader |
+| --- | --- | --- | --- |
+| Product Manual | [product-manual.md](product-manual.md) | [product-manual-zh.md](product-manual-zh.md) | Users and installers — specifications, electrical interface, installation, maintenance, troubleshooting |
+| Software Development Manual | [soft-gripper-development-manual.md](soft-gripper-development-manual.md) | [soft-gripper-development-manual-zh.md](soft-gripper-development-manual-zh.md) | Integrators — SDK installation, interface usage and preconditions, the CAN protocol |
+
+Read the Product Manual first: it covers the gripper's specifications, wiring,
+installation, maintenance and troubleshooting, and assumes no knowledge of the
+communication protocol. Read the Software Development Manual when you write your
+own control program: it covers SDK installation, each interface's parameters and
+return values, its **preconditions**, exceptions, and the underlying CAN
+protocol.
+
+A Chinese edition of this file is at [readme_zn.md](readme_zn.md).
 
 ## Scope
 
@@ -12,7 +30,6 @@ site for the **LiteGrip lightweight robotic gripper series**.
 | --- | --- |
 | Product | LiteGrip lightweight robotic gripper series |
 | Repository role | Product documentation source, built and published as the public documentation site |
-| Status | Initializing — no source code yet |
 
 ## Related repositories
 
