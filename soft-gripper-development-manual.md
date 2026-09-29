@@ -1700,7 +1700,7 @@ Expect the `ERR` byte of the feedback frame to be `0x9` (undervoltage). **Receiv
 | several units interfering with each other | several CAN masters at once | **keep a single master**; make the software layer mutually exclusive |
 | the position reading is 1.5 mm lower than the caliper | the SDK zero point is at the closed mechanical limit | caliper reading ≈ `get_position() + 1.508` |
 
-**If you cannot resolve the problem yourself**, record the following information and contact us: product model and serial number, SDK version, Python version, operating system and kernel version, CAN interface configuration, the full exception message and stack trace, and the output of `examples/can_diag.py`.
+**If you cannot resolve the problem yourself**, record the following information and contact us: product model and serial number, SDK version, Python version, operating system and kernel version, CAN interface configuration, and the full exception message and stack trace.
 
 ---
 
