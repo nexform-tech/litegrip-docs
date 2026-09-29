@@ -39,6 +39,9 @@ jobs:
       - name: Lint Markdown
         run: npx --yes markdownlint-cli2@0.23.3 "README.md"
 
+      - name: Check handbook tables of contents
+        run: python3 scripts/check_toc.py
+
       - name: Validate repository standards
         run: |
           set -euo pipefail
