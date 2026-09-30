@@ -142,7 +142,7 @@ Safety notices in the other sections of this document name their severity with t
 4. **Do not use a software stop as a safety function.** `stop()` only sends a zero-torque frame, the motor stays enabled and can be back-driven, and it does not return success or failure; the `disable()` return value only means the command was sent, not confirmed (see [Enabling, disabling, and fault handling](#enabling-disabling-and-fault-handling)). Neither can replace a hardware emergency stop.
 5. **Do not treat a return value as evidence that the command took effect.** A motion interface return value only means the frame was sent; only a feedback frame can prove the actual state.
 6. **Do not use any force parameter before force calibration is complete.** The `force_n` conversion uses the nominal coefficient `0.1 N·m/N`, which the SDK neither validates nor limits (see [Grasping and force control](#grasping-and-force-control)).
-7. Frames must be sent periodically during operation, otherwise the driver **automatically exits the enabled state** after 0.4 s [to be measured · B, verify by reading back RID 9]; **this timeout protection can be disabled, and once it is disabled the motor keeps the last torque command when the link drops** -- do not disable it without an assessment.
+7. Frames must be sent periodically during operation, otherwise the driver **automatically exits the enabled state** after 0.4 s (verify by reading back RID 9); **this timeout protection can be disabled, and once it is disabled the motor keeps the last torque command when the link drops** -- do not disable it without an assessment.
 8. Debugging and calibration **must be supervised by a person present**, and the hardware emergency stop must be available.
 9. If you find anything abnormal (unusual noise, jamming, abnormal temperature rise, jumping position readings), **stop the machine immediately and cut the 24 V**, then investigate.
 
@@ -593,7 +593,7 @@ state = gripper.get_state(wait=True)
 | Method | Returns |
 |--------------------------------------|--------------------------------------------------------------|
 | `is_moving()` | Whether the gripper is moving |
-| `is_grasped()` | Whether `abs(torque_nm)` exceeds `config.grasp_torque_threshold` (default 0.5 N·m) [to be measured · C, can only be fixed after force calibration] |
+| `is_grasped()` | Whether `abs(torque_nm)` exceeds `config.grasp_torque_threshold` (default 0.5 N·m; can only be fixed after force calibration) |
 | `wait_for_ready(timeout=5.0)` | Blocks until enabled and stationary; returns `False` on timeout |
 
 **Polling and expert interfaces:**
@@ -740,7 +740,7 @@ The scale is computed as `rad_to_mm = stroke used for calibration (mm) ÷ measur
 | `max_stroke_mm` | `120.0` (**placeholder value; `87.000` should be entered on this unit**) | Mechanical stroke (mm), **used only during calibration as the scale numerator**; see [Calibration and zero point](#calibration-and-zero-point) |
 | `rad_to_mm` | `105.26` [computed by the script after calibration] | Angle → millimeter conversion (**placeholder value when uncalibrated**) |
 | `nm_to_n` | `10.0` | Torque → force conversion. **The current code does not read this field**; it actually uses the class constant `UnitConversion.NM_TO_N = 10.0`, so changing it has no effect |
-| `grasp_torque_threshold` | `0.5` [to be measured · C, no basis, can only be fixed after force calibration] | The decision threshold of `is_grasped()` (N·m) |
+| `grasp_torque_threshold` | `0.5` (no basis, can only be fixed after force calibration) | The decision threshold of `is_grasped()` (N·m) |
 
 **Derived properties** — direction is data, not a separate switch:
 
@@ -1242,7 +1242,7 @@ This chapter documents the SDK as of the revision named in the repository's `REA
 | Interface names, signatures, defaults and dataclass fields | **Verified** against the SDK source, method by method |
 | CAN protocol chapter | **Verified** against the driver and the SDK codec; worked examples reproduce byte for byte |
 | Motion examples in [First run](#5-first-run-make-the-gripper-move) and below | **Not executed on hardware.** Written from the SDK source and its README; the printed values are illustrative |
-| Values marked `[to be measured · B]` / `[to be measured · C]` | **Not measured.** They are placeholders awaiting bench measurement |
+| The 0.4 s communication timeout, the MIT quantization ranges, and `grasp_torque_threshold` | **Not measured.** They are placeholders awaiting bench measurement |
 | Simulation and ROS entry points | **Not executed.** Taken from each repository's README and file tree |
 
 > **Do not** treat an example in this manual as a tested program. Anything that moves the gripper must be validated on your own hardware, at reduced force and speed, before it goes near a workpiece or a person.
@@ -1305,7 +1305,7 @@ Q: Does setting `kp` / `kd` to 1000 raise an error? A: No. At encoding time they
 
 Q: Reading `OC_Value` gives 0.8; is that 0.8 A? A: **No.** It is a **ratio**, meaning 80%.
 
-Q: Are `PMAX` / `VMAX` / `TMAX` my protection thresholds? A: **No.** They are the **MIT quantization range** of the frame fields (the range definition) and must not be used as safety limits for position / velocity / torque. **The real velocity protection is in `MAX_SPD`.** [to be measured · B, the SDK never reads these three registers back and uses a hardcoded range, so it needs verification by reading back]
+Q: Are `PMAX` / `VMAX` / `TMAX` my protection thresholds? A: **No.** They are the **MIT quantization range** of the frame fields (the range definition) and must not be used as safety limits for position / velocity / torque. **The real velocity protection is in `MAX_SPD`.** (The SDK never reads these three registers back and uses a hardcoded range, so it needs verification by reading back.)
 
 Q: Can I control it from two host computers at the same time? A: **No.** You must guarantee a **single CAN master** and enforce mutual exclusion in software. With multiple masters running concurrently, the commands overwrite each other. One process may own several grippers — use `litegrip.can.controller` rather than a second process.
 
@@ -1538,7 +1538,7 @@ A **response frame** has the same structure: byte 2 echoes the opcode (`0x33` = 
 >
 > **Note**: **RID 21 / 22 / 23 (`PMAX` / `VMAX` / `TMAX`) are MIT quantization ranges, not protection thresholds.** They define the range of the MIT frame fields, and **must not** be treated as safety limits for position, velocity, or torque. **The real velocity protection is in RID 6 (`MAX_SPD`).**
 >
-> **To be measured**: the ranges the SDK uses in this section are **hardcoded** `±12.5 / ±30 / ±10` (see `litegrip/can/protocol.py`), and **the code never reads RID 21/22/23 back**, so it cannot be asserted that they match the actual values in this motor's registers [to be measured · B, verify by reading back with `scripts/read_driver_limits.py`].
+> **Note**: the ranges the SDK uses in this section are **hardcoded** `±12.5 / ±30 / ±10` (see `litegrip/can/protocol.py`), and **the code never reads RID 21/22/23 back**, so it cannot be asserted that they match the actual values in this motor's registers (verify by reading back with `scripts/read_driver_limits.py`).
 
 **Example frames:**
 
@@ -1609,7 +1609,7 @@ A **response frame** has the same structure: byte 2 echoes the opcode (`0x33` = 
 | Status refresh wait | 0.05 s | The time `get_state(wait=True)` waits for one feedback frame |
 | Parameter read wait | 0.5 s | The default timeout of `read_param()` |
 | Control frame repeat interval | 5 ms (200 Hz) | The beat during a motion |
-| Driver communication timeout | 0.4 s [to be measured · B, verify by reading back RID 9] | After the timeout the driver **exits the enabled state automatically** |
+| Driver communication timeout | 0.4 s (verify by reading back RID 9) | After the timeout the driver **exits the enabled state automatically** |
 
 > **Note**: **What "fresh feedback" means.** The enable decision cannot just look at "a frame with `ERR = 0x1` was received at some point". After power-up the driver may already have a stale status frame buffered. **Only a frame received after the enable command was sent counts** — that is exactly how the SDK judges it.
 >

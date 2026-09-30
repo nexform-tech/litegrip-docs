@@ -133,8 +133,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 > **This chapter lists only the specification items the customer needs for selection and use**; it does not include internal parameters that matter only for design or calibration,
 > **nor does it include items that are not yet finalized and are not yet released externally**.
-> For items still marked **to be measured**, the meaning is "**the item exists and must be measured, but the value has not been measured yet**"; it does not mean the item does not exist, nor that it can be left unmeasured.
-> Until these items are measured and released, **do not use them for selection calculations, load design, or safety assessment**.
+> Until an item has been measured and released, **do not use it for selection calculations, load design, or safety assessment**.
 >
 > For the complete list, including internal design values, measurement methods, and factory inspection items, see the Parameter Document, Chapter 8.
 
@@ -199,9 +198,8 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 > **This section is the most important one for selection.**
 >
-> **The values in this section fall into three categories; check the tag when you cite them**: **[measured]** = measured on this unit with weights / a push-pull gauge / a scale,
-> valid only for the **test piece, contact surface, and pose** at that time; **[recommended value]** = a level we chose from the measured values, **not a measurement**;
-> **[to be measured]** = the item exists and must be measured, but the value has not been measured yet. **A missing entry does not mean the item does not exist.**
+> **The values in this section fall into two categories; check the tag when you cite them**: **[measured]** = measured on this unit with weights / a push-pull gauge / a scale,
+> valid only for the **test piece, contact surface, and pose** at that time; **[recommended value]** = a level we chose from the measured values, **not a measurement**.
 
 | Item | Specification |
 |------|------|
@@ -575,8 +573,6 @@ Q: Does the gripper release when power is cut? A: **Yes.** This product has **no
 Q: Must the 24 V supply be connected? A: **Yes.** With only USB-CAN connected, it can communicate and report status, but it **will not move**, and it reports undervoltage. That is normal, not a fault.
 
 Q: How do I stop the gripper? A: **The emergency stop must be implemented in hardware**: cut the 24 V drive power (note that this product has no power-off self-locking, so the fingers will release when you cut it), or wire an independent emergency-stop circuit outside the host computer. What the software can do on its own is described in [the Software Development Manual](soft-gripper-development-manual.md).
-
-Q: What does the "to be measured" marker in the manual mean? A: It means **the item definitely exists and must be measured, but the value has not been measured yet**. **A missing entry does not mean the item does not exist.** Until it is measured, do not use these values for selection or safety assessment.
 
 Q: What is the technical support channel? A: The NEXFORM ROBOTICS technical team. Contact details are in the documents shipped with the product and through the sales channel, or the contact person from your purchase can forward you to technical support directly.
 
