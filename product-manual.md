@@ -33,7 +33,7 @@ LiteGrip is an adaptive two-finger parallel gripper that NEXFORM ROBOTICS design
 
 ## Hardware components
 
-The composition of the standard delivery kit and the accompanying equipment is as follows (for the included accessories and the packing list, refer to the Packing List shipped with the product):
+The composition of the standard delivery kit and the accompanying equipment is as follows:
 
 | No. | Item | Description |
 |------|------|------|
