@@ -154,7 +154,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | Working stroke | **0 ~ 87.000 mm** (the entire stroke is usable, with no internally disabled region; by caliper actual aperture it is 1.508 ~ 87.000 mm) |
 | Power-off self-locking | **None** (holding torque is lost when power is removed) |
 | No-load starting torque | 0.198 ~ 0.222 N·m |
-| Total mass | **0.483 kg**[A, measured with a scale, 2026-09-28; includes motor, cable, fingertips, and mounting parts] |
+| Total mass | **0.483 kg**[includes motor, cable, fingertips, and mounting parts] |
 
 > **How "effective stroke" is measured**: with the drive force removed, push the two fingers together and pull them apart by hand to the two **extreme positions** (the open end rests against the mechanical hard stop; the closed end is the two fingers touching, with **no hard stop**), and measure between the inner faces of the two fingertips with a digital caliper. The mean of 5 readings at the closed end is **1.508 mm**, and the open end is **87.000 mm**.
 >
@@ -199,7 +199,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 > **This section is the most important one for selection.**
 >
-> **The values in this section fall into three categories; check the tag when you cite them**: **[A, measured]** = measured on this unit with weights / a push-pull gauge / a scale,
+> **The values in this section fall into three categories; check the tag when you cite them**: **[measured]** = measured on this unit with weights / a push-pull gauge / a scale,
 > valid only for the **test piece, contact surface, and pose** at that time; **[recommended value]** = a level we chose from the measured values, **not a measurement**;
 > **[to be measured]** = the item exists and must be measured, but the value has not been measured yet. **A missing entry does not mean the item does not exist.**
 
