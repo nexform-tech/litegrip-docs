@@ -4,7 +4,7 @@
 
 LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and education, AI robotics development, and lightweight industrial automation, with an effective stroke of 87.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps) and comes with a Python SDK and complete protocol documentation; it supports grasping, handling, loading and unloading, sorting, and algorithm validation.
 
-This document is for **integrators** and explains SDK installation, interface usage, parameters and return values, exceptions, the **precondition** of each interface, and the underlying CAN communication protocol. For product specification values (stroke, velocity, torque, temperature, electrical parameters, and so on), see the Product Manual and the Parameter Document; for the basis of the safety design, see the Safety Manual.
+This document is for **integrators** and explains SDK installation, interface usage, parameters and return values, exceptions, the **precondition** of each interface, and the underlying CAN communication protocol. For product specification values (stroke, velocity, torque, temperature, electrical parameters, and so on), see [the Product Manual](product-manual.md) and the Parameter Document; for the basis of the safety design, see the Safety Manual.
 
 ## Contents
 
@@ -234,7 +234,7 @@ The LiteGrip Python SDK is the `litegrip` package. It wraps the Damiao **DM-J431
 
 ## 1. Installing the SDK
 
-The package is not published to PyPI, so installation starts from a checkout of the SDK repository.
+The package is not published to PyPI, so installation starts from a checkout of the [`litegrip-python`](https://github.com/nexform-tech/litegrip-python) repository.
 
 **Step one, clone the repository:**
 
@@ -421,7 +421,7 @@ gripper.clear_fault()   # clear driver faults
 | `clear_fault()` | `clear_fault() -> bool` | Disable → clear (`0xFB`) → enable → verify, retried up to `GripperParams.FAULT_CLEAR_RETRIES` (5) |
 | `stop()` | `stop() -> None` | Emergency stop: sends one zero-torque MIT frame. **Does not disable**, does not latch, returns nothing |
 
-> **Note**: **`stop()` is not a safety-rated stop.** It sends a single zero-torque frame and returns; the motor stays enabled and will accept the next command. For an actual emergency stop, cut the 24 V supply with a hardware switch — see the safety chapter of the Product Manual.
+> **Note**: **`stop()` is not a safety-rated stop.** It sends a single zero-torque frame and returns; the motor stays enabled and will accept the next command. For an actual emergency stop, cut the 24 V supply with a hardware switch — see the [safety section](product-manual.md#safety) of the Product Manual.
 
 ## Motion control (open/close and position)
 
@@ -623,7 +623,7 @@ That is, **a smaller `rad` means a wider aperture**; `pos_closed_rad` is the end
 
 **The conversion coefficient `rad_to_mm` is written by the calibration process** and equals "the stroke used for calibration (mm) ÷ the measured angular stroke (rad)". The value measured on this unit is:
 
-> **Effective stroke 87.000 mm ÷ the angular stroke measured on this unit (rad) = this unit's `rad_to_mm`**. The numerator is `config.max_stroke_mm` and the denominator is the rad span measured during calibration; **both numbers differ from unit to unit**. For this unit's values see the calibration file shipped with the product and Section 2.2 of the Product Manual.
+> **Effective stroke 87.000 mm ÷ the angular stroke measured on this unit (rad) = this unit's `rad_to_mm`**. The numerator is `config.max_stroke_mm` and the denominator is the rad span measured during calibration; **both numbers differ from unit to unit**. For this unit's values see the calibration file shipped with the product and the [stroke and position parameters](product-manual.md#stroke-and-position-parameters) section of the Product Manual.
 
 > **Note**: **`rad_to_mm` only affects "the millimeter values displayed and the millimeter targets"**; it does not move any boundary, because the `pos_closed_rad` / `pos_open_rad` used for clamping are rad values themselves and do not depend on `rad_to_mm`. A wrong coefficient only makes the millimeter numbers wrong.
 >
@@ -1138,7 +1138,7 @@ class MyTransport(TeleopTransport):
 
 ## C++ SDK
 
-`litegrip-cpp` is the ROS-agnostic C++ SDK, built with CMake. It is **layer 1 only**: transport, bus ownership, the `LiteGrip` object, calibration and JSON handling, `SafetyGuard`, and `ControlLoop`.
+[`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) is the ROS-agnostic C++ SDK, built with CMake. It is **layer 1 only**: transport, bus ownership, the `LiteGrip` object, calibration and JSON handling, `SafetyGuard`, and `ControlLoop`.
 
 ```bash
 cmake -B build
@@ -1157,7 +1157,7 @@ target_link_libraries(your_target PRIVATE litegrip::litegrip)
 
 ## ROS 2 (ros2_control and MoveIt 2)
 
-**`ros2_control` hardware interface** — `litegrip-ros2` provides the `litegrip_ros2_control` `SystemInterface` plugin, backed directly by the C++ SDK with no Python daemon in the path. Add it to a controller configuration:
+**`ros2_control` hardware interface** — [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) provides the `litegrip_ros2_control` `SystemInterface` plugin, backed directly by the C++ SDK with no Python daemon in the path. Add it to a controller configuration:
 
 ```xml
 <ros2_control name="LiteGripSystem" type="system">
@@ -1168,7 +1168,7 @@ target_link_libraries(your_target PRIVATE litegrip::litegrip)
 </ros2_control>
 ```
 
-**Motion planning** — `litegrip-moveit2` provides a MoveIt 2 configuration for the gripper, with the planning group `gripper` and named states `open` (0.087 m) and `closed` (0.0 m).
+**Motion planning** — [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) provides a MoveIt 2 configuration for the gripper, with the planning group `gripper` and named states `open` (0.087 m) and `closed` (0.0 m).
 
 ```bash
 ros2 launch litegrip_moveit_config demo.launch.py
@@ -1176,7 +1176,7 @@ ros2 launch litegrip_moveit_config demo.launch.py
 
 > **Note**: **The demo runs in dry-run mode by default.** To drive real hardware, pass `dry_run:=false hardware_enable:=true max_feedback_velocity_rad_s:=0.9`. The default `max_feedback_velocity_rad_s` is `-1.0`, which **refuses all motion** — this is deliberate fail-closed behaviour, not a fault.
 
-The URDF model lives in `litegrip-urdf`:
+The URDF model lives in [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf):
 
 ```bash
 ros2 launch litegrip_urdf display.launch.py
@@ -1184,15 +1184,15 @@ ros2 launch litegrip_urdf display.launch.py
 
 Add `stroke:=` to override the stroke used for the visual model.
 
-> **Note**: **`litegrip-ros1` does not exist yet.** The repository is a stub containing only CI configuration and a README; it has no source, no package and no release. **Do not plan a ROS 1 integration around it.**
+> **Note**: **[`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) does not exist yet.** The repository is a stub containing only CI configuration and a README; it has no source, no package and no release. **Do not plan a ROS 1 integration around it.**
 
 ## Simulation (MuJoCo, PyBullet, Isaac Sim)
 
 | Package | Entry point | What it gives you |
 |------|------|------|
-| `litegrip-pybullet` | `python3 examples/01_sim_only.py --headless` | `GripperSim` with `command_fraction()`, `settle()`, `aperture_mm()`, `finger_force_n()`; examples for sim→real and real→sim |
-| `litegrip-mujoco` | `from litegrip_mujoco import MujocoGripper` | `MujocoGripper` with `open`/`close`/`goto`/`grasp`/`get_state`, plus `MirrorMode` and `DualGripper` for real↔sim mirroring |
-| `litegrip-isaacsim` | `ISAAC_SIM_PATH=... ./run_gripper.sh` | An Isaac Sim node subscribing to `/gripper/joint_traj`, and a bridge to real hardware over CAN |
+| [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | `python3 examples/01_sim_only.py --headless` | `GripperSim` with `command_fraction()`, `settle()`, `aperture_mm()`, `finger_force_n()`; examples for sim→real and real→sim |
+| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | `from litegrip_mujoco import MujocoGripper` | `MujocoGripper` with `open`/`close`/`goto`/`grasp`/`get_state`, plus `MirrorMode` and `DualGripper` for real↔sim mirroring |
+| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | `ISAAC_SIM_PATH=... ./run_gripper.sh` | An Isaac Sim node subscribing to `/gripper/joint_traj`, and a bridge to real hardware over CAN |
 
 `litegrip-mujoco` is the richest of the three, with five numbered examples from `01_hello_sim.py` to `05_dual_control.py`.
 
@@ -1202,7 +1202,7 @@ Add `stroke:=` to override the stroke used for the visual model.
 
 ## Host application (litegrip-studio)
 
-`litegrip-studio` is the operator console: a PyQt5 application for driving, calibrating and monitoring the gripper, with a plotting page and a self-test mode.
+[`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) is the operator console: a PyQt5 application for driving, calibrating and monitoring the gripper, with a plotting page and a self-test mode.
 
 ```bash
 ./run_litegrip_studio.sh sim        # against the simulated backend
@@ -1220,22 +1220,22 @@ This manual documents what exists. This table exists so nobody plans around some
 
 | Component | Status |
 |------|------|
-| `litegrip-python` | Complete and active. The primary path |
-| `litegrip-cpp` | Layer 1 only. No `grasp()`, no `set_force()`, no `move_at_speed*()`; `close(force_n=...)` ignores the force |
-| `litegrip-ros1` | **Empty stub.** No source, no package, no release |
-| `litegrip-ros2` | Usable; the `ros2_control` plugin is the entry point |
-| `litegrip-moveit2` | Usable; dry-run by default, fail-closed on motion limits |
-| `litegrip-urdf` | Visualisation and `ros2_control` verified. **`effort` and `velocity` limits are SolidWorks placeholder defaults**, and the Gazebo launch has never been executed |
-| `litegrip-mujoco` | Complete, with the richest example set |
-| `litegrip-pybullet` | Complete |
-| `litegrip-isaacsim` | Sim side works; the real-gripper `OPEN_MM` calibration is a placeholder |
-| `litegrip-studio` | Complete and active |
+| [`litegrip-python`](https://github.com/nexform-tech/litegrip-python) | Complete and active. The primary path |
+| [`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) | Layer 1 only. No `grasp()`, no `set_force()`, no `move_at_speed*()`; `close(force_n=...)` ignores the force |
+| [`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) | **Empty stub.** No source, no package, no release |
+| [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) | Usable; the `ros2_control` plugin is the entry point |
+| [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) | Usable; dry-run by default, fail-closed on motion limits |
+| [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf) | Visualisation and `ros2_control` verified. **`effort` and `velocity` limits are SolidWorks placeholder defaults**, and the Gazebo launch has never been executed |
+| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | Complete, with the richest example set |
+| [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | Complete |
+| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | Sim side works; the real-gripper `OPEN_MM` calibration is a placeholder |
+| [`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) | Complete and active |
 
 **No releases ship binaries.** Every repository publishes tag-only releases with no attached assets, and **no package is on PyPI**. Everything installs from a source checkout.
 
 ## Reporting and verification status
 
-This chapter documents the SDK as of the revision named in the repository's `README.md`. Interfaces change; when a call fails with an unexpected signature, check the SDK's own README and `py.typed` annotations before assuming the manual is right.
+This chapter documents the SDK as of the revision named in the repository's `README.md`. Interfaces change; when a call fails with an unexpected signature, check the SDK's own [README](https://github.com/nexform-tech/litegrip-python#readme) and `py.typed` annotations before assuming the manual is right.
 
 | Content | Status |
 |------|------|
