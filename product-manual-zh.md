@@ -2,7 +2,7 @@
 
 [English](product-manual.md) | [简体中文](product-manual-zh.md)
 
-LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，采用电机直驱与自适应抓取机构，有效行程 87.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），随货配套 Python SDK、CAN 通信协议说明书与本机标定文件，可用于抓取、搬运、上下料、分拣与算法验证等场景。
+LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，采用电机直驱与自适应抓取机构，有效行程 87.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），随货配套 Python SDK 与本机标定文件，可用于抓取、搬运、上下料、分拣与算法验证等场景。
 
 ## 目录
 
@@ -397,7 +397,7 @@ LiteGrip 的对外接口由三组连线构成：
 >
 > **注意**：**每台设备的 CAN ID 可能不同**，以随货标签为准。
 
-接口配置命令与帧格式、寄存器编号，见《CAN 通信协议说明书》。
+接口配置命令与帧格式、寄存器编号，见《软件开发手册》的["CAN 通信协议"](soft-gripper-development-manual-zh.md#can-通信协议)一章。
 
 # 夹爪安装以及使用指南
 
