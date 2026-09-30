@@ -6,6 +6,10 @@ editions, `## 目录` in the Chinese ones — that links to each top-level and
 second-level heading. Renaming a heading without updating that list breaks the
 links silently, which no other check in this repository would notice.
 
+The same holds for the cross-references in the prose: a `](#section)` link
+inside one handbook, and a `](other-handbook.md#section)` link that jumps from
+the product manual into the development manual. Both are checked here.
+
 The anchor slugs use GitHub's algorithm. It was verified entry by entry against
 `github-slugger`, the package GitHub itself uses, across every heading of the
 four handbooks, so this script and a rendered GitHub page agree on every link.
@@ -62,6 +66,17 @@ def scan(lines):
             yield index, len(match.group(1)), text, slugify(text, seen)
 
 
+ANCHOR_CACHE = {}
+
+
+def anchors_of(name):
+    """The set of heading anchors in *name*, read once per run."""
+    if name not in ANCHOR_CACHE:
+        lines = (REPO / name).read_text(encoding="utf-8").split("\n")
+        ANCHOR_CACHE[name] = {slug for _, _, _, slug in scan(lines)}
+    return ANCHOR_CACHE[name]
+
+
 def check(name):
     """Return (contents entry count, list of problems) for one handbook."""
     lines = (REPO / name).read_text(encoding="utf-8").split("\n")
@@ -109,6 +124,21 @@ def check(name):
                 problems.append(
                     f"{name}:{index + 1}: the link {text!r} points at #{slug}, "
                     f"which is not a heading"
+                )
+        # A jump into another handbook of this repository. The heading it names
+        # lives in that file, so the check above cannot see it.
+        for text, target, slug in re.findall(
+            r"\[([^\]]+)\]\(([^)#\s]+\.md)#([^)]+)\)", stripped
+        ):
+            if not (REPO / target).exists():
+                problems.append(
+                    f"{name}:{index + 1}: the link {text!r} points at {target}, "
+                    f"which is not a file in this repository"
+                )
+            elif slug not in anchors_of(target):
+                problems.append(
+                    f"{name}:{index + 1}: the link {text!r} points at "
+                    f"{target}#{slug}, which is not a heading there"
                 )
 
     # Every top-level heading except the document title, and every second-level

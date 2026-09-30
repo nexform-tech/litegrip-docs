@@ -64,7 +64,7 @@ The units of physical quantities used in this document and in the SDK are as fol
 
 > **Unless stated otherwise, "mm" in this document always means "actual aperture"** (the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **The position the SDK returns is `p` from the table above, not the actual aperture**; on the closed side the two differ by a 1.508 mm closing gap: `actual aperture ≈ p + 1.508`. For the full reading convention, see "Units and conversion" in the Software Development Manual.
+> **The position the SDK returns is `p` from the table above, not the actual aperture**; on the closed side the two differ by a 1.508 mm closing gap: `actual aperture ≈ p + 1.508`. For the full reading convention, see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) in the Software Development Manual.
 >
 > **rad values are not a product specification.** The assembly phase between the motor and the gripper mechanism **differs from unit to unit**, so the rad endpoints differ on every gripper. Always use **the calibration file shipped with that unit** — this manual states no rad numbers for any sample unit.
 
@@ -96,7 +96,7 @@ Before the first power-up of the gripper or the gripper system, you must underst
 5. Read the documentation carefully before you develop or debug with the SDK or the host computer, and make sure the input parameters (target position, velocity, gripping force) are correct. For the first motion, use a low velocity and a conservative stroke.
 6. **This product has no power-off self-locking.** After disable or abnormal power-down, the motor no longer outputs a holding torque and the gripper may move under gravity or an external force. If the application does not allow movement after power-off, **you must add a separate mechanical holding device**.
 7. If an accident or an abnormal condition occurs during operation, press the hardware emergency stop and cut the power immediately, then investigate the problem.
-8. Unauthorized personnel must never modify this unit's calibration file, the motor registers, or the host-side limiting parameters. The modified stroke endpoints and conversion coefficients directly affect position control; for details see "Units and conversion" and "Calibration and zero point" in the Software Development Manual.
+8. Unauthorized personnel must never modify this unit's calibration file, the motor registers, or the host-side limiting parameters. The modified stroke endpoints and conversion coefficients directly affect position control; for details see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) and [Calibration and zero point](soft-gripper-development-manual.md#calibration-and-zero-point) in the Software Development Manual.
 9. Before installation, maintenance, or cleaning, **you must disconnect the 24 V power supply and confirm that power is off**.
 
 #### Personnel safety
@@ -184,7 +184,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 **Sign convention**: for the motor angle, **a larger value = the closing direction**, a smaller value = the opening direction; `dq > 0` and `tau > 0` mean the closing direction.
 
-> **Note**: When a position target exceeds the calibrated endpoint, the SDK **silently clamps** it to the endpoint — it neither raises an error nor gives any indication. **"Commands must not go out of range" must be implemented by the integrator in the application layer** (see "Motion control (open/close and position)" in the Software Development Manual).
+> **Note**: When a position target exceeds the calibrated endpoint, the SDK **silently clamps** it to the endpoint — it neither raises an error nor gives any indication. **"Commands must not go out of range" must be implemented by the integrator in the application layer** (see [Motion control (open/close and position)](soft-gripper-development-manual.md#motion-control-openclose-and-position) in the Software Development Manual).
 >
 > **Note**: **The two endpoints are different in nature, and neither is "hard limit protection".** The table below gives the **observation** obtained by pushing the gripper by hand in a zero gravity state and recording the motion extremes.
 >
@@ -193,7 +193,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 > | **Opening (tension)** | **Yes** | At two levels of push force, it springs back to the same position after the force is removed (difference **0 counts**) |
 > | **Closing (pressure)** | **No** | After the force is removed the two fingers **spring apart by about 72 counts (≈ 2 % of full stroke)** before they stop — this is the two fingers **colliding in contact**, held by the mechanism's elasticity, not hitting a hard stop |
 >
-> **Consequence**: **There is no hard limit protection in the closing direction.** Continuously issuing close commands = **continuous pushing against the stop**; the mechanism will not "stop when it hits the hard stop". This direction can only be covered by the SDK's **torque cap** (factory default **10.0 N·m**). When you need to hold a grip for a long time, use **torque control** rather than a position command driven against the closed end; see "Grasping and force control" in the Software Development Manual.
+> **Consequence**: **There is no hard limit protection in the closing direction.** Continuously issuing close commands = **continuous pushing against the stop**; the mechanism will not "stop when it hits the hard stop". This direction can only be covered by the SDK's **torque cap** (factory default **10.0 N·m**). When you need to hold a grip for a long time, use **torque control** rather than a position command driven against the closed end; see [Grasping and force control](soft-gripper-development-manual.md#grasping-and-force-control) in the Software Development Manual.
 
 ## Grip and load capacity
 
@@ -229,7 +229,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | Absolute position accuracy | **0.5 mm** |
 | Repeatability | **0.5 mm**, acceptance criterion ≤ 0.5 mm |
 
-> **The velocities in the table above are recommended values derived by the Parameter Document using a "stopping distance model"; they are not measured data, and they are not the gripper's own speed limit.** The shipped SDK **does not implement this model** — it will not slow down automatically near an endpoint, nor will it reject or truncate the velocity value you supply; instead it converts the velocity you give and sends it as-is (see "Motion control (open/close and position)" in the Software Development Manual). These two numbers therefore **can only serve as design input when the integrator limits the speed itself**, and **until they are measured, the velocities in this section must not be used for safety assessment**.
+> **The velocities in the table above are recommended values derived by the Parameter Document using a "stopping distance model"; they are not measured data, and they are not the gripper's own speed limit.** The shipped SDK **does not implement this model** — it will not slow down automatically near an endpoint, nor will it reject or truncate the velocity value you supply; instead it converts the velocity you give and sends it as-is (see [Motion control (open/close and position)](soft-gripper-development-manual.md#motion-control-openclose-and-position) in the Software Development Manual). These two numbers therefore **can only serve as design input when the integrator limits the speed itself**, and **until they are measured, the velocities in this section must not be used for safety assessment**.
 >
 > **Position resolution is the encoder resolution, not repeatability.** The latter is affected by mechanical backlash, friction, control gain, and other factors; treat it as a design target when you cite it.
 
@@ -407,7 +407,7 @@ This chapter covers acceptance, installation, wiring, host requirements, daily u
 
 | Document | Reader |
 |------|------|
-| the Software Development Manual | Integration engineers — software interface usage and preconditions |
+| [the Software Development Manual](soft-gripper-development-manual.md) | Integration engineers — software interface usage and preconditions |
 | the Parameter Document | Integration engineers — all parameter values and their sources |
 
 ## Appearance and parts
@@ -467,7 +467,7 @@ Wire the three connection groups as shown in [Interface overview](#interface-ove
 
 The CAN interface must be brought up as **classic CAN at 1 Mbps with CAN FD disabled**. An interface left in CAN FD mode communicates with nothing at all, and that symptom is easily mistaken for a hardware fault.
 
-For the interface configuration commands, the SDK installation, the example scripts, and a bus self-check that does not use the SDK, see the Software Development Manual.
+For the interface configuration commands, the SDK installation, the example scripts, and a bus self-check that does not use the SDK, see [the Software Development Manual](soft-gripper-development-manual.md).
 
 ## Daily use and maintenance
 
@@ -574,7 +574,7 @@ Q: Does the gripper release when power is cut? A: **Yes.** This product has **no
 
 Q: Must the 24 V supply be connected? A: **Yes.** With only USB-CAN connected, it can communicate and report status, but it **will not move**, and it reports undervoltage. That is normal, not a fault.
 
-Q: How do I stop the gripper? A: **The emergency stop must be implemented in hardware**: cut the 24 V drive power (note that this product has no power-off self-locking, so the fingers will release when you cut it), or wire an independent emergency-stop circuit outside the host computer. What the software can do on its own is described in the Software Development Manual.
+Q: How do I stop the gripper? A: **The emergency stop must be implemented in hardware**: cut the 24 V drive power (note that this product has no power-off self-locking, so the fingers will release when you cut it), or wire an independent emergency-stop circuit outside the host computer. What the software can do on its own is described in [the Software Development Manual](soft-gripper-development-manual.md).
 
 Q: What does the "to be measured" marker in the manual mean? A: It means **the item definitely exists and must be measured, but the value has not been measured yet**. **A missing entry does not mean the item does not exist.** Until it is measured, do not use these values for selection or safety assessment.
 
