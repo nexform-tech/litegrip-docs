@@ -4,7 +4,7 @@
 
 LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，有效行程 87.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），配套 Python SDK 与完整协议文档，可用于抓取、搬运、上下料、分拣与算法验证等场景。
 
-本文档面向**集成工程师**，说明 SDK 的安装、接口用法、参数与返回值、异常、每个接口的**前置条件**，以及底层 CAN 通信协议。产品规格数值（行程、速度、力矩、温度与电气参数等）见《产品手册》与《参数文档》；安全设计依据见《安全说明书》。
+本文档面向**集成工程师**，说明 SDK 的安装、接口用法、参数与返回值、异常、每个接口的**前置条件**，以及底层 CAN 通信协议。产品规格数值（行程、速度、力矩、温度与电气参数等）见[《产品手册》](product-manual-zh.md)与《参数文档》；安全设计依据见《安全说明书》。
 
 ## 目录
 
@@ -234,7 +234,7 @@ LiteGrip 的 Python SDK 是 `litegrip` 包。它封装达妙 **DM-J4310-2EC** �
 
 ## 1. 安装 SDK
 
-本包没有发布到 PyPI，因此安装从检出 SDK 仓库开始。
+本包没有发布到 PyPI，因此安装从检出 [`litegrip-python`](https://github.com/nexform-tech/litegrip-python) 仓库开始。
 
 **第一步，克隆仓库：**
 
@@ -421,7 +421,7 @@ gripper.clear_fault()   # 清驱动故障
 | `clear_fault()` | `clear_fault() -> bool` | 失能 → 清故障（`0xFB`）→ 使能 → 确认，最多重试 `GripperParams.FAULT_CLEAR_RETRIES`（5）次 |
 | `stop()` | `stop() -> None` | 急停：发一帧零力矩 MIT 帧。**不使能也不失能**，不锁存，无返回值 |
 
-> **注意**：**`stop()` 不是安全级停止。** 它只发一帧零力矩就返回；电机保持使能，会接受下一条命令。真正的急停要用硬件开关切断 24 V——见《产品手册》安全章节。
+> **注意**：**`stop()` 不是安全级停止。** 它只发一帧零力矩就返回；电机保持使能，会接受下一条命令。真正的急停要用硬件开关切断 24 V——见《产品手册》的[安全须知](product-manual-zh.md#安全须知)章节。
 
 ## 运动控制（开合与位置）
 
@@ -623,7 +623,7 @@ position_mm = (config.pos_closed_rad - position_rad) * config.rad_to_mm
 
 **换算系数 `rad_to_mm` 由标定过程写入**，等于"用于标定的行程（mm）÷ 实测角行程（rad）"。本机实测值为：
 
-> **有效行程 87.000 mm ÷ 本机实测角行程（rad）= 本机 `rad_to_mm`**。分子是 `config.max_stroke_mm`，分母是标定过程中实测的 rad 跨度；**两个数都随机而异**。本机的取值见随机附带的标定文件与《产品手册》2.2 节。
+> **有效行程 87.000 mm ÷ 本机实测角行程（rad）= 本机 `rad_to_mm`**。分子是 `config.max_stroke_mm`，分母是标定过程中实测的 rad 跨度；**两个数都随机而异**。本机的取值见随机附带的标定文件与《产品手册》的[行程与位置参数](product-manual-zh.md#行程与位置参数)一节。
 
 > **注意**：**`rad_to_mm` 只影响"显示的毫米数与毫米目标"**；它不动任何边界，因为钳位用的 `pos_closed_rad` / `pos_open_rad` 本身就是 rad 值，不依赖 `rad_to_mm`。系数错了只是毫米数不对。
 >
@@ -1138,7 +1138,7 @@ class MyTransport(TeleopTransport):
 
 ## C++ SDK
 
-`litegrip-cpp` 是与 ROS 无关的 C++ SDK，用 CMake 构建。它**只有第一层**：传输、总线持有、`LiteGrip` 对象、标定与 JSON 处理、`SafetyGuard`，以及 `ControlLoop`。
+[`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) 是与 ROS 无关的 C++ SDK，用 CMake 构建。它**只有第一层**：传输、总线持有、`LiteGrip` 对象、标定与 JSON 处理、`SafetyGuard`，以及 `ControlLoop`。
 
 ```bash
 cmake -B build
@@ -1157,7 +1157,7 @@ target_link_libraries(your_target PRIVATE litegrip::litegrip)
 
 ## ROS 2（ros2_control 与 MoveIt 2）
 
-**`ros2_control` 硬件接口** —— `litegrip-ros2` 提供 `litegrip_ros2_control` 的 `SystemInterface` 插件，直接由 C++ SDK 支撑，链路里没有 Python 守护进程。把它加进控制器配置：
+**`ros2_control` 硬件接口** —— [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) 提供 `litegrip_ros2_control` 的 `SystemInterface` 插件，直接由 C++ SDK 支撑，链路里没有 Python 守护进程。把它加进控制器配置：
 
 ```xml
 <ros2_control name="LiteGripSystem" type="system">
@@ -1168,7 +1168,7 @@ target_link_libraries(your_target PRIVATE litegrip::litegrip)
 </ros2_control>
 ```
 
-**运动规划** —— `litegrip-moveit2` 提供夹爪的 MoveIt 2 配置，规划组为 `gripper`，命名状态为 `open`（0.087 m）与 `closed`（0.0 m）。
+**运动规划** —— [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) 提供夹爪的 MoveIt 2 配置，规划组为 `gripper`，命名状态为 `open`（0.087 m）与 `closed`（0.0 m）。
 
 ```bash
 ros2 launch litegrip_moveit_config demo.launch.py
@@ -1176,7 +1176,7 @@ ros2 launch litegrip_moveit_config demo.launch.py
 
 > **注意**：**该 demo 默认跑在 dry-run 模式。** 要驱动真机，请传 `dry_run:=false hardware_enable:=true max_feedback_velocity_rad_s:=0.9`。`max_feedback_velocity_rad_s` 的默认值是 `-1.0`，它会**拒绝一切运动**——这是刻意的失效安全行为，不是故障。
 
-URDF 模型在 `litegrip-urdf` 里：
+URDF 模型在 [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf) 里：
 
 ```bash
 ros2 launch litegrip_urdf display.launch.py
@@ -1184,15 +1184,15 @@ ros2 launch litegrip_urdf display.launch.py
 
 加 `stroke:=` 可以覆盖可视化模型用的行程。
 
-> **注意**：**`litegrip-ros1` 还不存在。** 该仓库是个桩，里面只有 CI 配置和一个 README；没有源码、没有包、没有发布。**不要围绕它规划 ROS 1 集成。**
+> **注意**：**[`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) 还不存在。** 该仓库是个桩，里面只有 CI 配置和一个 README；没有源码、没有包、没有发布。**不要围绕它规划 ROS 1 集成。**
 
 ## 仿真（MuJoCo、PyBullet、Isaac Sim）
 
 | 包 | 入口 | 你能得到什么 |
 |------|------|------|
-| `litegrip-pybullet` | `python3 examples/01_sim_only.py --headless` | `GripperSim`，带 `command_fraction()`、`settle()`、`aperture_mm()`、`finger_force_n()`；以及 sim→real 与 real→sim 的示例 |
-| `litegrip-mujoco` | `from litegrip_mujoco import MujocoGripper` | `MujocoGripper`，带 `open`/`close`/`goto`/`grasp`/`get_state`，另有 `MirrorMode` 与 `DualGripper` 做真机与仿真的镜像 |
-| `litegrip-isaacsim` | `ISAAC_SIM_PATH=... ./run_gripper.sh` | 一个 Isaac Sim 节点，订阅 `/gripper/joint_traj`，以及一条连到真机 CAN 的桥 |
+| [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | `python3 examples/01_sim_only.py --headless` | `GripperSim`，带 `command_fraction()`、`settle()`、`aperture_mm()`、`finger_force_n()`；以及 sim→real 与 real→sim 的示例 |
+| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | `from litegrip_mujoco import MujocoGripper` | `MujocoGripper`，带 `open`/`close`/`goto`/`grasp`/`get_state`，另有 `MirrorMode` 与 `DualGripper` 做真机与仿真的镜像 |
+| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | `ISAAC_SIM_PATH=... ./run_gripper.sh` | 一个 Isaac Sim 节点，订阅 `/gripper/joint_traj`，以及一条连到真机 CAN 的桥 |
 
 三者中 `litegrip-mujoco` 最完整，从 `01_hello_sim.py` 到 `05_dual_control.py` 有五个编号示例。
 
@@ -1202,7 +1202,7 @@ ros2 launch litegrip_urdf display.launch.py
 
 ## 上位机（litegrip-studio）
 
-`litegrip-studio` 是操作台：一个 PyQt5 应用，用来驱动、标定和监视夹爪，带绘图页与自检模式。
+[`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) 是操作台：一个 PyQt5 应用，用来驱动、标定和监视夹爪，带绘图页与自检模式。
 
 ```bash
 ./run_litegrip_studio.sh sim        # against the simulated backend
@@ -1220,22 +1220,22 @@ ros2 launch litegrip_urdf display.launch.py
 
 | 组件 | 状态 |
 |------|------|
-| `litegrip-python` | 完整且在维护。主力路径 |
-| `litegrip-cpp` | 只有第一层。没有 `grasp()`、没有 `set_force()`、没有 `move_at_speed*()`；`close(force_n=...)` 忽略力参数 |
-| `litegrip-ros1` | **空桩。** 没有源码、没有包、没有发布 |
-| `litegrip-ros2` | 可用；入口是 `ros2_control` 插件 |
-| `litegrip-moveit2` | 可用；默认 dry-run，运动限位失效安全 |
-| `litegrip-urdf` | 可视化与 `ros2_control` 已验证。**`effort` 与 `velocity` 是 SolidWorks 的占位默认值**，Gazebo 的 launch 从未执行过 |
-| `litegrip-mujoco` | 完整，示例最丰富 |
-| `litegrip-pybullet` | 完整 |
-| `litegrip-isaacsim` | 仿真侧可用；真机 `OPEN_MM` 标定是占位值 |
-| `litegrip-studio` | 完整且在维护 |
+| [`litegrip-python`](https://github.com/nexform-tech/litegrip-python) | 完整且在维护。主力路径 |
+| [`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) | 只有第一层。没有 `grasp()`、没有 `set_force()`、没有 `move_at_speed*()`；`close(force_n=...)` 忽略力参数 |
+| [`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) | **空桩。** 没有源码、没有包、没有发布 |
+| [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) | 可用；入口是 `ros2_control` 插件 |
+| [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) | 可用；默认 dry-run，运动限位失效安全 |
+| [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf) | 可视化与 `ros2_control` 已验证。**`effort` 与 `velocity` 是 SolidWorks 的占位默认值**，Gazebo 的 launch 从未执行过 |
+| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | 完整，示例最丰富 |
+| [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | 完整 |
+| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | 仿真侧可用；真机 `OPEN_MM` 标定是占位值 |
+| [`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) | 完整且在维护 |
 
 **没有任何发布附带二进制。** 每个仓库发布的都是只有 tag、没有附件的 release，而且**没有任何包在 PyPI 上**。一切都从源码检出安装。
 
 ## 报告与验证状态
 
-本章记录的是仓库 `README.md` 中所标版本时点的 SDK。接口会变；当某个调用的签名与预期不符时，请先查 SDK 自己的 README 与 `py.typed` 标注，再怀疑手册。
+本章记录的是仓库 `README.md` 中所标版本时点的 SDK。接口会变；当某个调用的签名与预期不符时，请先查 SDK 自己的 [README](https://github.com/nexform-tech/litegrip-python#readme) 与 `py.typed` 标注，再怀疑手册。
 
 | 内容 | 状态 |
 |------|------|
