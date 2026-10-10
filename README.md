@@ -36,12 +36,12 @@ The documentation covers:
 | MuJoCo simulation | [litegrip-mujoco](https://github.com/nexform-tech/litegrip-mujoco) | v0.2.0 | 2026-09-29 |
 | PyBullet simulation | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.3.0 | 2026-09-29 |
 | Isaac Sim simulation | [litegrip-isaacsim](https://github.com/nexform-tech/litegrip-isaacsim) | v1.0.1 | 2026-09-27 |
-| URDF model | [litegrip-urdf](https://github.com/nexform-tech/litegrip-urdf) | Not released | — |
+| URDF model | [litegrip-description](https://github.com/nexform-tech/litegrip-description) | Not released | — |
 | Host application | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.6.0 | 2026-09-29 |
 
 **Two rows say "Not released", and they mean different things.** `litegrip-ros1` is a placeholder:
 the repository is initialized, but its source code, packaging and documentation have not landed
-yet, so there is nothing to install. `litegrip-urdf` holds the model, its launch files and its
+yet, so there is nothing to install. `litegrip-description` holds the model, its launch files and its
 documentation, and simply has no tag yet — take it from the default branch.
 
 **Every release in this table is source only.** None of these repositories attaches a compiled
@@ -58,7 +58,7 @@ python3 -m pip install .
 
 ## 3. Mechanical model
 
-[litegrip-urdf](https://github.com/nexform-tech/litegrip-urdf) holds the URDF description. It has no
+[litegrip-description](https://github.com/nexform-tech/litegrip-description) holds the URDF description. It has no
 tagged release yet, so take it from the default branch.
 
 ## 4. API examples
