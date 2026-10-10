@@ -1176,7 +1176,7 @@ ros2 launch litegrip_moveit_config demo.launch.py
 
 > **注意**：**该 demo 默认跑在 dry-run 模式。** 要驱动真机，请传 `dry_run:=false hardware_enable:=true max_feedback_velocity_rad_s:=0.9`。`max_feedback_velocity_rad_s` 的默认值是 `-1.0`，它会**拒绝一切运动**——这是刻意的失效安全行为，不是故障。
 
-URDF 模型在 [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf) 里：
+URDF 模型在 [`litegrip-description`](https://github.com/nexform-tech/litegrip-description) 里：
 
 ```bash
 ros2 launch litegrip_urdf display.launch.py
@@ -1225,7 +1225,7 @@ ros2 launch litegrip_urdf display.launch.py
 | [`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) | **空桩。** 没有源码、没有包、没有发布 |
 | [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) | 可用；入口是 `ros2_control` 插件 |
 | [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) | 可用；默认 dry-run，运动限位失效安全 |
-| [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf) | 可视化与 `ros2_control` 已验证。**`effort` 与 `velocity` 是 SolidWorks 的占位默认值**，Gazebo 的 launch 从未执行过 |
+| [`litegrip-description`](https://github.com/nexform-tech/litegrip-description) | 可视化与 `ros2_control` 已验证。**`effort` 与 `velocity` 是 SolidWorks 的占位默认值**，Gazebo 的 launch 从未执行过 |
 | [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | 完整，示例最丰富 |
 | [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | 完整 |
 | [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | 仿真侧可用；真机 `OPEN_MM` 标定是占位值 |

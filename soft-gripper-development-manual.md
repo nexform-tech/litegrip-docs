@@ -1176,7 +1176,7 @@ ros2 launch litegrip_moveit_config demo.launch.py
 
 > **Note**: **The demo runs in dry-run mode by default.** To drive real hardware, pass `dry_run:=false hardware_enable:=true max_feedback_velocity_rad_s:=0.9`. The default `max_feedback_velocity_rad_s` is `-1.0`, which **refuses all motion** — this is deliberate fail-closed behaviour, not a fault.
 
-The URDF model lives in [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf):
+The URDF model lives in [`litegrip-description`](https://github.com/nexform-tech/litegrip-description):
 
 ```bash
 ros2 launch litegrip_urdf display.launch.py
@@ -1225,7 +1225,7 @@ This manual documents what exists. This table exists so nobody plans around some
 | [`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) | **Empty stub.** No source, no package, no release |
 | [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) | Usable; the `ros2_control` plugin is the entry point |
 | [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) | Usable; dry-run by default, fail-closed on motion limits |
-| [`litegrip-urdf`](https://github.com/nexform-tech/litegrip-urdf) | Visualisation and `ros2_control` verified. **`effort` and `velocity` limits are SolidWorks placeholder defaults**, and the Gazebo launch has never been executed |
+| [`litegrip-description`](https://github.com/nexform-tech/litegrip-description) | Visualisation and `ros2_control` verified. **`effort` and `velocity` limits are SolidWorks placeholder defaults**, and the Gazebo launch has never been executed |
 | [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | Complete, with the richest example set |
 | [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | Complete |
 | [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | Sim side works; the real-gripper `OPEN_MM` calibration is a placeholder |
