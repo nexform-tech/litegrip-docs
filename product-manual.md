@@ -175,6 +175,8 @@ Through the risk assessment, users must judge whether the relevant hazards const
 > The **1.508 mm** difference is exactly the gap that still remains between the two fingers when fully closed: `actual aperture ≈ p + 1.508`.
 > **"Effective stroke 87.000 mm" is the SDK scale convention**, not a span measured with a caliper; the two differ by 1.8 %.
 >
+> **The `87.000` / `85.492` pair is this unit's caliper record, not an SDK constant.** The SDK's own geometry constants state `JAW_TRAVEL_MM = 85.0` with `STOP_INSET_MM = 1.0` (a calibration span of `86.0 mm`), and the shipped URDF carries `0.042726 m` per finger — `85.452 mm` across, which agrees with the caliper span above to within 0.04 mm. **The `87.000 mm` "effective stroke" is the outlier**: it is the SDK position scale, and these other sources have not been reconciled with it. Where a millimetre decides whether a part fits, measure your own unit with a caliper rather than trusting any figure printed here.
+>
 > **The rad value is not a product specification.** The assembly phase between the motor and the gripper mechanism **differs from unit to unit**, so **the rad endpoints differ for every gripper**; you must use **the calibration file shipped with that unit**, and must not copy the numbers of any prototype. The `pos_closed_rad` / `pos_open_rad` and `rad_to_mm` used inside the SDK are all in the calibration file shipped with the product; **this manual does not state specific numbers**.
 >
 > **The conversion coefficient `rad_to_mm` = the stroke used for calibration ÷ the rad span in this unit's calibration file**; it likewise **differs from unit to unit, and the value is in the calibration file shipped with the product**; a wrong coefficient only makes the displayed number wrong, and does not change the position of the calibrated endpoints.
@@ -473,7 +475,7 @@ For the interface configuration commands, the SDK installation, the example scri
 
 **Grasping**: the gripper closes until it **contacts the object and is obstructed**, which is taken as a successful grip, and it holds position. The criterion is whether the fingers stop moving, so **gripping an object and reaching the stroke endpoint both count as a successful grip**; read the position to tell the two apart.
 
-> **Note**: **The gripping force parameter is not validated at all.** The shipped SDK converts a force value into a feedforward torque using a coefficient that has never been calibrated against a real load. Before force calibration is complete, **do not rely on the force parameter**; a pure position grasp needs no force value, and writing 0 asks for exactly that.
+> **Note**: **The gripping force parameter is not validated at all.** The shipped SDK converts a force value into a feedforward torque using a coefficient that has never been calibrated against a real load. Before force calibration is complete, **do not rely on the force parameter**; for a pure position grasp, call `close()`, which takes no force argument at all — the gripper closes until the object obstructs it.
 
 **Manual guidance**: to hold the gripper at a new position, put it in **zero gravity mode**; the motor then outputs no torque and you can push the fingers by hand. Leaving the mode holds the position at the moment you exit it.
 
@@ -525,7 +527,7 @@ After any of the following, you **must recalibrate**:
 | The gripper stops at an endpoint and will not move | The target position is outside the calibrated range and is **silently clamped** to the endpoint | **The SDK does not report an error**; check the calibrated values and the target position |
 | Grasping always reports failure | The fingers are still moving at timeout — usually they never touched the object | Confirm the object is within the stroke range |
 | | The timeout is set too short | Increase the grasp timeout |
-| Insufficient gripping force | **Force control has not yet completed factory calibration** | **Do not rely on the force parameter**; use position grasping or add a mechanical limit |
+| Insufficient gripping force | **Force control has not yet completed factory calibration** | **Do not rely on the force parameter**; use a position grasp (`close()`) or add a mechanical limit |
 | Abnormal noise or jamming during motion | Foreign matter on the guide rail / mechanical damage | Cut power and inspect; contact service |
 | Shuts down after running for a while | Overtemperature protection | Reduce the load or improve heat dissipation |
 
@@ -558,11 +560,11 @@ After any of the following, you **must recalibrate**:
 
 Q: How wide is the gripper aperture? A: **The effective stroke is 87.000 mm** (SDK position `p` runs from 0 to 87.000; the full stroke is usable). If you measure the actual aperture between the two fingers with a caliper, it is **1.508 mm** fully closed and **87.000 mm** fully open, a span of **85.492 mm**. Note that the position the SDK returns is the millimeter reading `p`, **not** the caliper reading: `actual aperture ≈ p + 1.508`.
 
-Q: How heavy an object can it grip? A: **We cannot answer that yet.** The load capacity has not been measured — it cannot be derived from the motor torque; it must be measured. Send us the workpiece dimensions, weight, material, and grasp pose, and we will assess it case by case.
+Q: How heavy an object can it grip? A: **2 kg rated, 3 kg maximum short-term** — both measured with weights, and both the result of friction holding rather than structural strength. See [Grip and load capacity](#grip-and-load-capacity) for the test piece, contact surface and pose they were measured with; the numbers hold only for that combination, so re-verify against your workpiece or ask us for the test records.
 
-Q: How large is the gripping force? A: **We cannot answer that yet.** It can only be measured after factory force calibration is complete, and it depends strongly on the fingertip material.
+Q: How large is the gripping force? A: **20 N per finger, 40 N across both fingers**, measured with a push-pull gauge; the recommended working value is 20 N total. It depends strongly on the fingertip material, so the figures hold for the fingertips that were measured. See [Grip and load capacity](#grip-and-load-capacity).
 
-Q: Can I set the gripping force? A: **You can enter a force value in the interface, but entering one does not make the force accurate.** The shipped SDK converts the force value through a **nominal coefficient** into a feedforward torque and sends it directly, **performing no validation and never refusing to execute**. That coefficient has never been calibrated against a real load, so the number is only a qualitative reference (larger means more force) and **must not be used as a calibrated gripping force**. For pure position grasping that stops on contact, **the force parameter is not needed at all**: the gripper closes until it contacts an object and is obstructed, which meets most grasping needs.
+Q: Can I set the gripping force? A: **`grasp(force_n=...)` takes a force, but entering one does not make the force accurate.** The shipped SDK converts the value through a **nominal coefficient** into a feedforward torque and sends it directly, **performing no validation and never refusing to execute**. That coefficient has never been calibrated against a real load, so the number is only a qualitative reference (larger means more force) and **must not be used as a calibrated gripping force**. For a position grasp that stops on contact, **pass no force at all**: `close()` has no force parameter, and it closes until something obstructs it — which meets most grasping needs.
 
 Q: Is Windows supported? A: **No.** The development kit currently supports Linux only.
 

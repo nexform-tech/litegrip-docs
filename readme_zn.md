@@ -23,18 +23,18 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 
 | 组件 | 仓库 | 最新版本 | 发布日期 |
 | --- | --- | --- | --- |
-| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v0.9.1 | 2026-09-29 |
-| C++ SDK | [litegrip-cpp](https://github.com/nexform-tech/litegrip-cpp) | v0.1.0 | 2026-09-28 |
+| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v1.1.0 | 2026-10-14 |
+| C++ SDK | [litegrip-cpp](https://github.com/nexform-tech/litegrip-cpp) | v1.0.9 | 2026-10-14 |
 | ROS 1 驱动 | [litegrip-ros1](https://github.com/nexform-tech/litegrip-ros1) | 暂无发布 | — |
 | ROS 2 驱动 | [litegrip-ros2](https://github.com/nexform-tech/litegrip-ros2) | v0.1.0 | 2026-09-28 |
-| MoveIt 2 配置 | [litegrip-moveit2](https://github.com/nexform-tech/litegrip-moveit2) | v0.1.0 | 2026-09-28 |
-| MuJoCo 仿真 | [litegrip-mujoco](https://github.com/nexform-tech/litegrip-mujoco) | v0.2.0 | 2026-09-29 |
-| PyBullet 仿真 | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.3.0 | 2026-09-29 |
+| MoveIt 2 配置 | [litegrip-moveit2](https://github.com/nexform-tech/litegrip-moveit2) | v0.1.1 | 2026-10-12 |
+| MuJoCo 仿真 | [litegrip-mujoco](https://github.com/nexform-tech/litegrip-mujoco) | v0.5.0 | 2026-10-10 |
+| PyBullet 仿真 | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.6.1 | 2026-10-10 |
 | Isaac Sim 仿真 | [litegrip-isaacsim](https://github.com/nexform-tech/litegrip-isaacsim) | v1.0.1 | 2026-09-27 |
-| URDF 模型 | [litegrip-description](https://github.com/nexform-tech/litegrip-description) | 暂无发布 | — |
-| 上位机 | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.6.0 | 2026-09-29 |
+| URDF 模型 | [litegrip-description](https://github.com/nexform-tech/litegrip-description) | v1.0.0 | 2026-10-12 |
+| 上位机 | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.12.4 | 2026-10-14 |
 
-**表中有两行写的是"暂无发布"，但两者含义不同。** `litegrip-ros1` 只是一个占位仓库：仓库已初始化，但源码、打包与文档都还没落地，目前没有任何可安装的内容。`litegrip-description` 则已有模型、launch 文件与文档，只是还没打 tag —— 请从默认分支获取。
+**表中只有一行写的是"暂无发布"。** `litegrip-ros1` 只是一个占位仓库：仓库已初始化，但源码、打包与文档都还没落地，目前没有任何可安装的内容。
 
 **上表的发布目前都只提供源码。** 这些仓库都没有挂编译好的安装包，所以没有按平台下载的二进制包。要查某个组件的完整版本历史，请打开它的 Releases 页面。
 
@@ -48,7 +48,28 @@ python3 -m pip install .
 
 ## 3. 机械模型
 
-URDF 描述在 [litegrip-description](https://github.com/nexform-tech/litegrip-description)，该仓库尚无发布版本，请从默认分支获取。
+模型在 [litegrip-description](https://github.com/nexform-tech/litegrip-description)，且已经发布：**v1.0.0**。ROS 2 包名为 `litegrip_description`。
+
+| 项目 | 取值 |
+| --- | --- |
+| 机器人描述 | `litegrip_description/urdf/litegrip_description.urdf.xacro` —— 唯一事实来源 |
+| 连杆 | `base_footprint`（根）、`base_link`、`gripper_slider_link1`（右）、`gripper_slider_link2`（左） |
+| 关节 | `gripper_slide_joint_right`（`+X`）、`gripper_slide_joint_left`（`-X`），均为移动副 |
+| 网格 | 三个 STL 文件：`base_link.STL`、`gripper_slider_link1.STL`、`gripper_slider_link2.STL` |
+| launch 文件 | `display.launch.py`、`ros2_control.launch.py`、`gazebo.launch.py` |
+| 环境要求 | Ubuntu 22.04 上的 ROS 2 Humble，系统 Python 3.10 |
+
+两个关节轴向相反，因此**取相同符号**才会让两指对称运动。随包发布的手指单侧行程为 `0.042726` m。
+
+即两指合计 `85.452 mm` 开口。它与产品手册的卡尺跨度 `85.492 mm` 相差不到 0.04 mm，但与该手册封面级的"有效行程 87.000 mm"**对不上**——后者是 SDK 的位置刻度，不是量出来的跨度。这两套数字尚未对齐，所以仿真以模型行程为准，机械配合请先量自己的机器。
+
+```bash
+ros2 launch litegrip_description display.launch.py
+```
+
+加 `stroke:=` 可覆盖模型使用的手指单侧行程。
+
+各仿真环境用的就是这套模型，而不是另建一套：PyBullet 加载上游 xacro 并在加载时做归一化处理，MuJoCo 的 MJCF 也建立在这三个 STL 网格之上。
 
 ## 4. API 使用例程
 
