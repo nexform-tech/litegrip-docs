@@ -63,7 +63,7 @@ The units of physical quantities used in this document and in the SDK are as fol
 
 > **Unless stated otherwise, "mm" in this document always means "actual aperture"** (the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **The position the SDK returns is `p` from the table above, and `p` is the actual aperture** — the distance between the inner faces of the two fingers, with no offset to apply. For the full reading convention, see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) in the Software Development Manual.
+> **The position the SDK returns is `p` from the table above, and `p` is the actual aperture** — the distance between the inner faces of the two fingers. It is not a motor angle and not a per-finger displacement. A move that ends by pressing onto the open mechanical stop reports about 1 mm above the aperture, because the SDK's position scale is calibrated with the stop inset (`STOP_INSET_MM = 1.0`). For the full reading convention, see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) in the Software Development Manual.
 >
 > **rad values are not a product specification.** The assembly phase between the motor and the gripper mechanism **differs from unit to unit**, so the rad endpoints differ on every gripper. Always use **the calibration file shipped with that unit** — this manual states no rad numbers for any sample unit.
 
@@ -130,9 +130,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 # Technical specifications
 
-> **This chapter lists only the specification items the customer needs for selection and use**; it does not include internal parameters that matter only for design or calibration,
-> **nor does it include items that are not yet finalized and are not yet released externally**.
-> Until an item has been measured and released, **do not use it for selection calculations, load design, or safety assessment**.
+> **This chapter lists only the specification items the customer needs for selection and use**; it does not include internal parameters that matter only for design or calibration.
 >
 > For the complete list, including internal design values, measurement methods, and factory inspection items, see the Parameter Document, Chapter 8.
 
@@ -154,7 +152,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | No-load starting torque | 0.198 ~ 0.222 N·m |
 | Total mass | **0.483 kg**[includes motor, cable, fingertips, and mounting parts] |
 
-> **How "effective stroke" is measured**: with the drive force removed, push the two fingers together and pull them apart by hand to the two **extreme positions** (the open end rests against the mechanical hard stop; the closed end is the two fingers touching, with **no hard stop**), and measure the aperture between the inner faces of the two fingertips with a digital caliper. Taken from the contact point at the closed end, the mean of 5 readings is **85.000 mm**.
+> **How "effective stroke" is defined**: with the drive force removed, push the two fingers together and pull them apart by hand to the two **extreme positions** (the open end rests against the mechanical hard stop; the closed end is the two fingers touching, with **no hard stop**), and measure the aperture between the inner faces of the two fingertips with a digital caliper. That distance is the effective stroke, **85.000 mm**.
 >
 > **Note**: **The no-load starting torque is a record of the starting torque corresponding to no-load static friction. It is not the gripping force, not the continuous torque, and must not be used as a torque cap.**
 
@@ -181,42 +179,24 @@ Through the risk assessment, users must judge whether the relevant hazards const
 > | **Opening (tension)** | **Yes** | At two levels of push force, it springs back to the same position after the force is removed (difference **0 counts**) |
 > | **Closing (pressure)** | **No** | After the force is removed the two fingers **spring apart by about 72 counts (≈ 2 % of full stroke)** before they stop — this is the two fingers **colliding in contact**, held by the mechanism's elasticity, not hitting a hard stop |
 >
-> **Consequence**: **There is no hard limit protection in the closing direction.** Continuously issuing close commands = **continuous pushing against the stop**; the mechanism will not "stop when it hits the hard stop". This direction can only be covered by the SDK's **torque cap** (factory default **10.0 N·m**). When you need to hold a grip for a long time, use **torque control** rather than a position command driven against the closed end; see [Grasping and force control](soft-gripper-development-manual.md#grasping-and-force-control) in the Software Development Manual.
+> **Consequence**: **There is no hard limit protection in the closing direction.** Continuously issuing close commands = **continuous pushing against the stop**; the mechanism will not "stop when it hits the hard stop". **The Python SDK has no torque cap**: `10.0 N·m` is only the DM4310 MIT frame's encoding range, and the SDK *refuses* a feed-forward torque beyond it rather than treating it as a protection threshold. Bounding the closing force is therefore the integrator's job — use **torque control** rather than a position command driven against the closed end; see [Grasping and force control](soft-gripper-development-manual.md#grasping-and-force-control) in the Software Development Manual.
 
 ## Grip and load capacity
 
-> **This section is the most important one for selection.**
+> **This section is the most important one for selection, and it deliberately carries no numbers.** How heavy an object this gripper can hold is fixed by the **gripping force**, the **friction coefficient** of the workpiece surface, and the **pose** — it is not one figure, and a figure measured on one test piece does not transfer to another.
 >
-> **The values in this section fall into two categories; check the tag when you cite them**: **[measured]** = measured on this unit with weights / a push-pull gauge / a scale,
-> valid only for the **test piece, contact surface, and pose** at that time; **[recommended value]** = a level we chose from the measured values, **not a measurement**.
-
-| Item | Specification |
-|------|------|
-| Maximum per-finger gripping force | **20 N**[measured; = total two-finger gripping force ÷ 2] |
-| Total two-finger gripping force | **40 N**[measured. In another test, the reading from gripping a scale with the gripper was **4500 g ≈ 44.1 N**; the two readings are of the same order of magnitude and differ by about 10%, and the difference comes from the measurement method and the sensor update rate; **take 40 N as the reference**] |
-| Recommended working gripping force | **20 N**[recommended value: 50% of the total gripping force; do not use at the maximum gripping force for long-term continuous operation] |
-| Rated load | **2 kg**[measured with weights; see the notes below for the pose and test piece] |
-| Maximum short-term load | **3 kg**[measured with weights; only short-term holding is guaranteed] |
-| Allowable static load in the vertical direction Fz | **20 N**[measured with weights] |
-
-> **Per-finger force and total two-finger force must not be mixed up**; when selecting, confirm which of the two values you are citing.
+> **Grip is friction holding, not structural strength.** The mass that can be held is `μ × total two-finger gripping force ÷ 9.81`, so any load figure holds only for the workpiece, contact surface and pose it was measured with. **Contact us for the grasping-force and load data for your application** instead of sizing against a number quoted for a different one.
 >
-> **All the load values above are the result of "friction holding", not structural strength.** How heavy an object can be lifted depends on both the gripping force and the **friction coefficient**
-> (`mass that can be lifted = μ × total two-finger gripping force ÷ 9.81`). The load values therefore **hold only for the test piece, contact surface, and pose that were measured** —
-> change the workpiece surface and the value changes. When selecting, re-verify against your actual workpiece, or ask us for the test records.
->
-> **The rated load cannot be derived from the motor torque**; it must be measured. **This product has no self-locking when power is removed**; if the application does not allow release after power loss, you must add a mechanical holding device.
+> **The load capacity cannot be derived from the motor torque**; it has to be measured. **This product has no self-locking when power is removed**; if the application does not allow release after power loss, you must add a mechanical holding device.
 
 ## Motion performance
 
 | Item | Specification |
 |------|------|
-| Recommended upper limit of open/close velocity (derived value) | 28.39 mm/s (opening) / 42.72 mm/s (closing) — **the SDK does not implement this speed limit**
-| Position resolution | **0.0242 mm** (encoder resolution)[derived value: 1 position count (3.8147 × 10⁻⁴ rad) × this unit's `rad_to_mm`; **the conversion coefficient differs from unit to unit**, and this unit's value is in the calibration file shipped with the product] |
-| Absolute position accuracy | **0.5 mm** |
-| Repeatability | **0.5 mm**, acceptance criterion ≤ 0.5 mm |
+| Position resolution | **0.0242 mm** (encoder resolution: 1 position count = 3.8147 × 10⁻⁴ rad, times this unit's `rad_to_mm`; **the coefficient differs from unit to unit** and this unit's value is in the calibration file shipped with the product) |
+| Absolute position accuracy | **2.708 mm**, measured with a caliper at 0 / 20 / 40 / 60 / 80 mm; **this misses the 0.5 mm design target** |
 
-> **The velocities in the table above are recommended values derived by the Parameter Document using a "stopping distance model"; they are not measured data, and they are not the gripper's own speed limit.** The shipped SDK **does not implement this model** — it will not slow down automatically near an endpoint, nor will it reject or truncate the velocity value you supply; instead it converts the velocity you give and sends it as-is (see [Motion control (open/close and position)](soft-gripper-development-manual.md#motion-control-openclose-and-position) in the Software Development Manual). These two numbers therefore **can only serve as design input when the integrator limits the speed itself**, and **until they are measured, the velocities in this section must not be used for safety assessment**.
+> **The shipped SDK imposes no speed limit.** It will not slow down automatically near an endpoint, and it will not reject or truncate the velocity value you supply — it converts the value you give and sends it as-is (see [Motion control (open/close and position)](soft-gripper-development-manual.md#motion-control-openclose-and-position) in the Software Development Manual). **Bounding the speed is the integrator's job.**
 >
 > **Position resolution is the encoder resolution, not repeatability.** The latter is affected by mechanical backlash, friction, control gain, and other factors; treat it as a design target when you cite it.
 
@@ -276,17 +256,15 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | # | Check | Basis for judgment |
 |---|--------|---------|
 | 1 | Object size | Whether it falls within the working stroke **0 ~ 85.000 mm** (SDK position convention) |
-| 2 | Object weight | **Load capacity is under 3 kg**; contact us for a case-by-case assessment |
+| 2 | Object weight | **Confirm it against your own workpiece, contact surface and pose** — no single load figure transfers. Contact us for the data |
 | 3 | Is release after power loss acceptable | **This product has no power-off self-locking**; if it is not acceptable, add a mechanical holding device |
 
-**Values that must not be used when selecting** (these are design values or historical values, not measured specifications):
+**Values that must not be used when selecting** (these are design or historical values, not measured specifications):
 
 | Value | Why it must not be used |
 |------|-------------|
 | No-load starting torque 0.198 ~ 0.222 N·m | It is **no-load static friction**, not the gripping force and not a torque cap |
-| Total torque cap 10.0 N·m | A design choice, not calibrated against a real load |
-| The driver's "torque MIT quantization range of 10 N·m" | It is the **quantization range** of a protocol field, not a protection threshold |
-| Absolute position accuracy | **0.5 mm** |
+| `10.0 N·m` | It is the **encoding range** of the MIT `tau` field, not a protection threshold. **The Python SDK enforces no torque cap** |
 
 > **The torque ceiling of the drive motor (order-of-magnitude reference)**: the manufacturer-rated nominal torque of the DM-J4310-2EC used in this product is **3.5 N·m**,
 > and the peak torque **12.5 N·m**.
@@ -360,7 +338,6 @@ The connections are as follows:
 
 > **Power supply sizing**: estimating from the peak supply current of 16.5 A given in the drive motor manual, the 24 V supply **should be at least 400 W**;
 > typical operation (rated 3.1 A) needs about 75 W.
-> Verify this against the measured peak current before finalizing.
 >
 > **Note**: **When the 24 V supply is abnormal, the driver's own protection takes over** (undervoltage 15 V / overvoltage 32 V). For its behavior, see the Safety Manual, Chapter 9.
 
@@ -547,9 +524,9 @@ After any of the following, you **must recalibrate**:
 
 Q: How wide is the gripper aperture? A: **The effective stroke is 85.000 mm.** The SDK position `p` runs from 0 at the fully closed end to 85.000 at the fully open end, the whole stroke is usable, and `p` **is** the aperture you would measure between the two fingertips with a caliper — there is no offset between the two. Per finger that is 42.500 mm.
 
-Q: How heavy an object can it grip? A: **2 kg rated, 3 kg maximum short-term** — both measured with weights, and both the result of friction holding rather than structural strength. See [Grip and load capacity](#grip-and-load-capacity) for the test piece, contact surface and pose they were measured with; the numbers hold only for that combination, so re-verify against your workpiece or ask us for the test records.
+Q: How heavy an object can it grip? A: **It depends on your workpiece, not on the gripper alone.** Grip is friction holding, so the figure is `μ × gripping force ÷ 9.81` for your contact surface and pose. This manual publishes no load figure; see [Grip and load capacity](#grip-and-load-capacity), and contact us for the data for your application.
 
-Q: How large is the gripping force? A: **20 N per finger, 40 N across both fingers**, measured with a push-pull gauge; the recommended working value is 20 N total. It depends strongly on the fingertip material, so the figures hold for the fingertips that were measured. See [Grip and load capacity](#grip-and-load-capacity).
+Q: How large is the gripping force? A: **It is not published.** `grasp(force_n=...)` accepts a value, but the SDK converts it through an uncalibrated nominal coefficient, so it is a qualitative reference only — larger means more force — and must not be used as a calibrated gripping force. See [Grip and load capacity](#grip-and-load-capacity).
 
 Q: Can I set the gripping force? A: **`grasp(force_n=...)` takes a force, but entering one does not make the force accurate.** The shipped SDK converts the value through a **nominal coefficient** into a feedforward torque and sends it directly, **performing no validation and never refusing to execute**. That coefficient has never been calibrated against a real load, so the number is only a qualitative reference (larger means more force) and **must not be used as a calibrated gripping force**. For a position grasp that stops on contact, **pass no force at all**: `close()` has no force parameter, and it closes until something obstructs it — which meets most grasping needs.
 

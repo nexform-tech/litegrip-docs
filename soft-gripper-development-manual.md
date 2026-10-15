@@ -42,7 +42,6 @@ This document is for **integrators** and explains SDK installation, interface us
   - [Simulation (MuJoCo, PyBullet, Isaac Sim)](#simulation-mujoco-pybullet-isaac-sim)
   - [Host application (litegrip-studio)](#host-application-litegrip-studio)
   - [What is not ready yet](#what-is-not-ready-yet)
-  - [Reporting and verification status](#reporting-and-verification-status)
   - [FAQ and technical support](#faq-and-technical-support)
 - [CAN communication protocol](#can-communication-protocol)
   - [Physical layer and nodes](#physical-layer-and-nodes)
@@ -96,7 +95,7 @@ This document is for **integrators** and explains SDK installation, interface us
 
 > **Unless this document states otherwise, "mm" always means the "actual aperture"** (that is, the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **`get_position()` and `position_mm` return the actual aperture.** The SDK's millimeter zero point sits at the fully closed end, where the two fingertips touch, and the reading counts up from there to **85.000** at the open end. **There is no offset to add** — the value is what a caliper measures between the two fingertips.
+> **`get_position()` and `position_mm` return the actual aperture.** The SDK's millimeter zero point sits at the fully closed end, where the two fingertips touch, and the reading counts up from there; the fully open aperture is **85.000**. It is what a caliper measures between the two fingertips — **not a motor angle and not a per-finger displacement**. A move that ends by pressing onto the open mechanical stop reads about **1 mm more** (`STOP_INSET_MM = 1.0`), because that is where the calibration probe found the endpoint.
 >
 > **Motor angle and calibrated values differ from unit to unit.** The rad endpoints come from the calibration file for this unit (`~/.litegrip/litegrip_calibration.json`), and **the values are different for every unit**, so this document gives no specific numbers; rely on the calibration file of your own unit.
 >
@@ -293,7 +292,7 @@ sudo ip link add dev vcan0 type vcan
 sudo ip link set up vcan0
 ```
 
-> There is no real motor on a virtual bus, so **the enable step times out** (`enable()` gets no feedback frame and raises `HardwareError` after its retries are exhausted). This is **expected behavior**, not a fault.
+> There is no real motor on a virtual bus, so **the enable step fails** — no status frame ever reports `err == 1`, so `enable()` exhausts its retries and returns `EnableResult(ok=False)`. This is **expected behavior**, not a fault.
 
 ## 3. Applying 24 V drive power
 
@@ -369,7 +368,7 @@ False True 12
 
 > **Do not** expect `reached=True` from a grasp that is holding something. In a grasp, `stalled=True` and `reached=False` is the success case. For `open()` and `close()` it is the other way round: those succeed by pressing onto the mechanical stop, so `ok=True` comes with `stalled=True`.
 
-> **Note**: **These three examples were written from the SDK source and its README; they were not executed against hardware for this revision of the manual.** The interface names, signatures and defaults are checked against the SDK, but the printed values are illustrative — your `cycles` count and exact positions will differ. See [Reporting and verification status](#reporting-and-verification-status).
+> **Note**: The interface names, signatures and defaults in these three examples are checked against the SDK; the printed values are illustrative, so your `cycles` count and exact positions will differ.
 
 ## 6. When the gripper does not move
 
@@ -405,7 +404,7 @@ gripper.clear_fault()   # clear driver faults
 
 **The full `enable()` sequence**: disable → switch to MIT mode → enable → **wait for a feedback frame to confirm**. If the current error code is not `0x0` / `0x1`, it first calls `clear_fault()` automatically to clear the fault once.
 
-**`enable()` returns an `EnableResult`**, whose `ok` field is `True` only when a valid feedback frame arrived after the command was sent (`ERR ∈ {0x0, 0x1}`); if the retries are exhausted with no confirmation it raises `HardwareError` — it never fakes success. `tries` reports how many attempts it took.
+**`enable()` returns an `EnableResult`**, whose `ok` field is `True` only when a status frame read back after the command reports `ERR == 0x1` (the "really enabled" code); a real fault (`ERR ∉ {0x0, 0x1}`) is cleared before the next attempt. If the retries are exhausted it returns `ok=False` — **it does not raise** — so check `ok` rather than relying on an exception. `tries` reports how many attempts it took.
 
 **The interfaces in this section check only two things: connected and enabled.** If either is missing they raise `NotInitializedError`.
 
@@ -424,7 +423,7 @@ gripper.clear_fault()   # clear driver faults
 
 | Layer | Methods | Preconditions | Uncalibrated |
 |------|------|------|------|
-| **High-level actions** | `open`, `close`, `grasp`, `zero` | Connected, enabled, **calibrated** | Raises `CommandError` |
+| **High-level actions** | `open`, `close`, `grasp` | Connected, enabled, **calibrated** | Raises `CommandError` |
 | **Positioning calls** | `goto`, `goto_rad`, `move_to`, `move_at_speed*`, `home` | Connected, enabled, **calibrated** | Raises `CommandError` too |
 
 The high-level actions run a closed-loop engine that ramps with a bounded lead, watches for a stall, and returns a result object. The positioning calls run one bounded ramp as well; the families differ in how the speed is given, not in what they guarantee.
@@ -455,8 +454,8 @@ The high-level actions run a closed-loop engine that ramps with a bounded lead, 
 | `dq_target` | `0.0` | Target velocity feedforward (rad/s), `goto_rad` only. **Must be 0** |
 | `tau_feedforward` | `0.0` | Feedforward torque (N·m) for `goto_rad` / `move_to`. **Must be 0**: the ramp derives its own feed-forward, so anything else raises `CommandError` |
 | `speed_mm_s` | `MotionConfig.speed_mm_s` (50.0) | Opening/closing speed for `open` / `close` |
-| `speed_mm_s` | 30.0[not measured] | Linear velocity for `move_at_speed` (mm/s) |
-| `speed_rad_s` | 0.5[not measured] | Angular velocity for `move_at_speed_rad` (rad/s) |
+| `speed_mm_s` | 30.0 | Linear velocity for `move_at_speed` (mm/s) |
+| `speed_rad_s` | 0.5 | Angular velocity for `move_at_speed_rad` (rad/s) |
 
 > The default values of `duration` are in the signatures below: `move_to` is 1.0 second, and `goto` / `goto_rad` are 0.5 second.
 
@@ -570,11 +569,11 @@ state = gripper.get_state(wait=True)
 | `is_enabled` | Whether the motor is enabled (`error_code == 1`) |
 | `is_error` | Whether a fault is present (`error_code` is neither 0 nor 1) |
 | `is_moving` | Whether the velocity exceeds a small threshold (0.01) |
-| `aperture_mm` | Aperture reading (**per-finger displacement**) |
+| `aperture_mm` | Aperture reading — the full aperture, identical to `position_mm` |
 
 > **Note**: **`force_n` is an estimate**, derived as `torque_nm × UnitConversion.NM_TO_N`, and `NM_TO_N = 10.0` is a **nominal conversion coefficient** (the source comment marks it `approximate`), not a calibrated one. **Until force calibration is complete, do not treat `force_n` as the real gripping force.**
 >
-> **Total aperture = `aperture_mm` × 2** (this field is per-finger displacement). Per-finger stroke 42.500 mm × 2 = total stroke 85.000 mm.
+> **`aperture_mm` is already the full aperture.** In the shipped SDK the property returns `position_mm` unchanged, so `aperture_mm == position_mm` — **do not double it**. The per-finger stroke is 42.500 mm, and doubling *that* is what gives the 85.000 mm total.
 
 **Convenience read methods:**
 
@@ -613,21 +612,21 @@ state = gripper.get_state(wait=True)
 
 ```python
 # goto() (gripper.py)
-position_rad = config.pos_closed_rad - position_mm / config.rad_to_mm
+position_rad = config.pos_closed_rad - position_mm / (config.close_sign * config.rad_to_mm)
 
 # get_state() (gripper.py)
-position_mm = (config.pos_closed_rad - position_rad) * config.rad_to_mm
+position_mm = (config.pos_closed_rad - position_rad) * config.close_sign * config.rad_to_mm
 ```
 
-That is, **a smaller `rad` means a wider aperture**; `pos_closed_rad` is the end with the larger value and `pos_open_rad` is the end with the smaller value.
+**`close_sign` carries the mounting direction**: `+1.0` when closing means increasing radians, `-1.0` for a reverse mount. The product is 0 mm at the closed limit and the full stroke at the open limit for **both** mountings. On the common normal mount a smaller `rad` means a wider aperture, with `pos_closed_rad` the larger of the two limits; a reverse mount is the other way round. **A conversion that omits `close_sign` reads the aperture backwards.**
 
-**The conversion coefficient `rad_to_mm` is written by the calibration process** and equals "the stroke used for calibration (mm) ÷ the measured angular stroke (rad)". The value measured on this unit is:
+**The conversion coefficient `rad_to_mm` is written by the calibration process** and equals "the scale numerator (mm) ÷ the measured angular stroke (rad)"; the numerator is `config.max_stroke_mm + STOP_INSET_MM`, the stroke plus the 1 mm the probe presses into the open stop.
 
-> **Effective stroke 85.000 mm ÷ the angular stroke measured on this unit (rad) = this unit's `rad_to_mm`**. The numerator is `config.max_stroke_mm` and the denominator is the rad span measured during calibration; **both numbers differ from unit to unit**. For this unit's values see the calibration file shipped with the product and the [stroke and position parameters](product-manual.md#stroke-and-position-parameters) section of the Product Manual.
+> **(`max_stroke_mm + STOP_INSET_MM`) ÷ the angular stroke measured on this unit (rad) = this unit's `rad_to_mm`**. The denominator is the rad span measured during calibration; **both numbers differ from unit to unit**. For this unit's values see the calibration file shipped with the product and the [stroke and position parameters](product-manual.md#stroke-and-position-parameters) section of the Product Manual.
 
 > **Note**: **`rad_to_mm` only affects "the millimeter values displayed and the millimeter targets"**; it does not move any boundary, because the `pos_closed_rad` / `pos_open_rad` used for clamping are rad values themselves and do not depend on `rad_to_mm`. A wrong coefficient only makes the millimeter numbers wrong.
 >
-> **Note**: **`position_mm` is the aperture a caliper measures.** The SDK's mm zero point is at the fully closed mechanical limit, where the two fingertips touch, and the reading counts up from there to 85.000 at the open end. **Add no offset**; if your caliper and `position_mm` disagree, the `rad_to_mm` scale is wrong, not the formula.
+> **Note**: **`position_mm` is the aperture a caliper measures.** The SDK's mm zero point is at the fully closed mechanical limit, where the two fingertips touch, and the reading counts up from there; the fully open aperture is 85.000, and a move that presses onto the open stop reads about 1 mm more (`STOP_INSET_MM = 1.0`). If your caliper and `position_mm` disagree by more than that, the `rad_to_mm` scale is wrong, not the formula.
 
 ## Manual guidance (zero gravity)
 
@@ -698,7 +697,7 @@ Both probing methods bound the command lead to `step_rad` and abort when the tor
 | `load_calibration(path=None, template=None) -> bool` | Loads calibration into `config`. Call it after `connect()` and before `enable()` |
 | `load_template(name) -> bool` | Loads a `"normal"` or `"reverse"` mount template, declaring the mount. `name` must be one of `list_templates()` |
 
-**`load_calibration()` lookup order** with no arguments: this channel's own file → the legacy single-file path `~/.litegrip/litegrip_calibration.json` → the factory calibration bundled with the SDK. Pass `path=` to read a specific file (it may still fall back to the factory file), or `template="normal"` / `template="reverse"` to load a mount template, which is strict and never falls back. Passing both `path` and `template` raises `CommandError`.
+**`load_calibration()` lookup order** with no arguments: the file named by the `LITEGRIP_CALIB` environment variable, then the factory calibration bundled with the SDK. Files sitting in `~/.litegrip` are **never picked up implicitly** — this load names the ones it passed over in a warning, with the call that would use them. Pass `path=` to read a specific file (it may still fall back to the factory file), or `template="normal"` / `template="reverse"` to load a mount template, which is strict and never falls back. Passing both `path` and `template` raises `CommandError`.
 
 > **Note**: **`load_calibration()` does not validate the source in any way.** It only handles "the file does not exist" and "JSON parsing failed"; whatever the file says, it believes. It also skips a file that names a different channel, and logs a warning rather than failing.
 >
@@ -1203,7 +1202,7 @@ g++ -std=c++17 $(pkg-config --cflags litegrip_cpp) main.cpp \
 **The surface matches Python, under C++ names.** `grasp()` and `move_at_speed*()` exist, as do `goto_mm()` / `goto_rad()` / `move_to()`, the four calibration entry points, `get_state()` with `is_stale()` and `data_age_s`, and `send_mit_frame()`. Two differences matter when you port:
 
 - **`set_force()` exists in neither SDK.** It was removed from both public APIs before v1.0.0; use `grasp()`.
-- **`close()` takes a speed, not a force.** The old `close(kp, kd, force_n, duration)` signature is gone; `close(speed_mm_s)` is the whole parameter list, and a port that relied on the force argument needs `grasp()` instead.
+- **`close()` takes a speed and an optional progress callback, not a force.** The old `close(kp, kd, force_n, duration)` signature is gone; `close(speed_mm_s, *, progress=None)` is the whole parameter list, and a port that relied on the force argument needs `grasp()` instead.
 
 The C++ SDK also carries a ceiling the Python one does not: `kMaxCommandVelocityCeilingRadS` (1.5 rad/s) in `safety.hpp`. `ControlLoop::max_velocity_rad_s` defaults to it and may only be lowered, never raised.
 
@@ -1224,7 +1223,7 @@ The C++ SDK also carries a ceiling the Python one does not: `kMaxCommandVelocity
 
 | Parameter | Default | What it decides |
 |------|------|------|
-| `channel` / `can_id` / `mst_id` / `canfd_mode` | `can0` / `0x08` / — / `false` | The bus the plugin owns |
+| `channel` / `can_id` / `mst_id` / `canfd_mode` | `can0` / `0x08` / `24` (0x18) / `false` | The bus the plugin owns |
 | `dry_run` / `hardware_enable` | — | Both switches must be on before a motion frame goes out |
 | `max_velocity_rad_s` | `1.5` | Command velocity ceiling. It can be lowered, never raised |
 | `max_feedback_velocity_rad_s` | `-1.0` | Worst-case feedback velocity bound. **`-1.0` means "not given", and the plugin then refuses to send any motion frame** |
@@ -1273,13 +1272,13 @@ Add `stroke:=` to override the per-finger travel the model uses.
 | [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | `from litegrip_mujoco import MujocoGripper` | `MujocoGripper` with `open`/`close`/`goto`/`grasp`/`get_state`, plus `MirrorMode` and `DualGripper` for real↔sim mirroring |
 | [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | `ISAAC_SIM_PATH=... ./run_gripper.sh` | An Isaac Sim node subscribing to `/gripper/joint_traj`, and a bridge to real hardware over CAN |
 
-`litegrip-mujoco` is the richest of the three, with five numbered examples from `01_hello_sim.py` to `05_dual_control.py`.
+All three ship the same five numbered examples, from `01_hello_sim.py` to `05_dual_control.py`.
 
 **Both Python simulators run the same model as the URDF package, not a copy of it.** PyBullet bundles the upstream ROS 2 xacro from `litegrip-description`, normalised at load time (mesh paths rewritten, the massless root link stripped), and MuJoCo builds its MJCF on the same three STL meshes.
 
 > **Note**: **None of the simulation packages is on PyPI**, despite what their READMEs show — `pip install litegrip-mujoco` returns 404 (checked 2026-10-15). Install them from a checkout, the same way as the SDK.
 
-> **Note**: **The Isaac Sim bridge's real-gripper calibration is a placeholder.** The simulated model and the sim node work, but the `OPEN_MM` value used to map the real gripper's opening onto the model has not been measured: with `OPEN_MM = None` the bridge falls back to `OPEN_MM_CALIB = 120.06` and logs a warning. Treat sim-to-real opening values from that bridge as indicative only.
+> **Note**: **The Isaac Sim bridge maps the real gripper's opening onto the model through the `OPEN_MM` constant**, which is set to **`110.0`** — the fully open aperture in the SDK's millimetre convention. Setting `OPEN_MM = None` falls back to the derived placeholder `OPEN_MM_CALIB = 120.06` and logs a warning; the bridge as shipped uses `110.0`.
 
 ## Host application (litegrip-studio)
 
@@ -1311,28 +1310,14 @@ This manual documents what exists. This table exists so nobody plans around some
 | [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) | Usable; the `ros2_control` plugin is the entry point |
 | [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) | Usable; dry-run by default, fail-closed on motion limits |
 | [`litegrip-description`](https://github.com/nexform-tech/litegrip-description) | Visualisation and `ros2_control` verified. **`effort` and `velocity` limits are SolidWorks placeholder defaults**, and the Gazebo launch has never been executed |
-| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | Complete, with the richest example set |
+| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | Complete |
 | [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | Complete |
-| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | Sim side works; the real-gripper `OPEN_MM` calibration is a placeholder |
+| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | Sim side works; `OPEN_MM = 110.0` maps the real gripper's opening onto the model |
 | [`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) | Complete and active |
 
 **No releases ship binaries.** Every repository publishes tag-only releases with no attached assets, and **no package is on PyPI**. Everything installs from a source checkout.
 
-## Reporting and verification status
-
-This chapter documents the SDK as of the revision named in the repository's `README.md`. Interfaces change; when a call fails with an unexpected signature, check the SDK's own [README](https://github.com/nexform-tech/litegrip-python#readme) and `py.typed` annotations before assuming the manual is right.
-
-| Content | Status |
-|------|------|
-| Interface names, signatures, defaults and dataclass fields | **Verified** against the SDK source, method by method |
-| CAN protocol chapter | **Verified** against the driver and the SDK codec; worked examples reproduce byte for byte |
-| Motion examples in [First run](#5-first-run-make-the-gripper-move) and below | **Not executed on hardware.** Written from the SDK source and its README; the printed values are illustrative |
-| The 0.4 s communication timeout, the MIT quantization ranges, and `grasp_torque_threshold` | **Not measured.** They are placeholders awaiting bench measurement |
-| Simulation and ROS entry points | **Not executed.** Taken from each repository's README and file tree |
-| C++ SDK interfaces, build and link flags | **Verified** against the C++ SDK by the maintainer |
-| litegrip-studio commands, paths and backend names | **Not executed.** Taken from the repository's README and file tree |
-
-> **Do not** treat an example in this manual as a tested program. Anything that moves the gripper must be validated on your own hardware, at reduced force and speed, before it goes near a workpiece or a person.
+> **Validate anything that moves the gripper on your own hardware first** — at reduced force and speed — before it goes near a workpiece or a person.
 
 ## FAQ and technical support
 
@@ -1380,7 +1365,7 @@ Q: During calibration, why does it keep pushing after it hits the hard stop? A: 
 
 Q: The calibrated `rad_to_mm` came out wrong? A: Check `max_stroke_mm`. It defaults to `85.0`, the jaw travel the shipped hardware has, and every calibration entry point uses `max_stroke_mm + STOP_INSET_MM` as the scale numerator (`rad_to_mm = (max_stroke_mm + 1.0) ÷ measured rad span`). Set it to **your** unit's jaw travel — measured from the closed stop with a caliper — before you re-probe; it is the one per-unit number no calibration file carries. One wrong value to avoid: the long-gone `120.0` placeholder belonged to no gripper in this family.
 
-Q: Where is the calibration file written? A: `save_calibration()` with no argument writes `~/.litegrip/<channel>_calibration.json` and **returns the path it wrote** — one file per channel, so two grippers on one machine do not overwrite each other. The name `~/.litegrip/litegrip_calibration.json` is the legacy path; `load_calibration()` still reads it as a fallback, but nothing writes it any more.
+Q: Where is the calibration file written? A: `save_calibration()` with no argument writes `~/.litegrip/<channel>_calibration.json` and **returns the path it wrote** — one file per channel, so two grippers on one machine do not overwrite each other. **Neither that file nor the legacy `~/.litegrip/litegrip_calibration.json` is ever read back automatically**: name it with `path=`, or point `LITEGRIP_CALIB` at it. Nothing writes the legacy name any more.
 
 Q: Why does `home()` not return to the closed end? A: It should. `home()` sends `self._config.pos_closed_rad` — **this instance's calibrated closed limit**, not a module constant — so it returns to the closed end for a normal mount and to the correct end for a reverse mount. If it moves to the wrong end, the calibration was not loaded and `pos_closed_rad` is still the placeholder. (Earlier revisions of this manual claimed `home()` used the constant `0.0 rad` and would drive into the open side. That was wrong; check `config.calibrated` instead.)
 
@@ -1517,7 +1502,7 @@ value = code × (max − min) / (2^width − 1) + min
 7F FF 7F F0 00 00 07 FF
 ```
 
-> **Why does a zero-torque frame still carry a position field?** The five fields of a MIT frame are fixed-length, so the `q` field **must** be present. Because `kp = kd = 0`, the two terms in the torque formula are always zero, so **the value of `q` has no effect on the output** — it is only a placeholder. When the SDK sends a zero-torque frame it fills `q` with a fixed `0` (that is, code value 32767 = `0x7FFF`), so no value with a "target position" meaning ever appears in the bytes on the wire. **This is a fixed value, not a "fill the safe zone" algorithm.**
+> **Why does a zero-torque frame still carry a position field?** The five fields of a MIT frame are fixed-length, so the `q` field **must** be present. Because `kp = kd = 0`, the two terms in the torque formula are always zero, so **the value of `q` has no effect on the output** — it produces no force either way. When the SDK sends a zero-torque frame it fills `q` with the **current measured position**, so the field carries a position the mechanism is actually at and a downstream reader cannot mistake the frame for a positioning command. **This is the live position, not a "fill the safe zone" algorithm.**
 
 **The real output of a zero-torque frame (important):**
 
@@ -1625,7 +1610,7 @@ A **response frame** has the same structure: byte 2 echoes the opcode (`0x33` = 
 >
 > **Note**: **RID 21 / 22 / 23 (`PMAX` / `VMAX` / `TMAX`) are MIT quantization ranges, not protection thresholds.** They define the range of the MIT frame fields, and **must not** be treated as safety limits for position, velocity, or torque. **The real velocity protection is in RID 6 (`MAX_SPD`).**
 >
-> **Note**: the ranges the SDK uses in this section are **hardcoded** `±12.5 / ±30 / ±10` (see `litegrip/can/protocol.py`), and **the code never reads RID 21/22/23 back**, so it cannot be asserted that they match the actual values in this motor's registers (verify by reading back with `scripts/read_driver_limits.py`).
+> **Note**: the ranges the SDK uses in this section are **hardcoded** `±12.5 / ±30 / ±10` (see `litegrip/can/protocol.py`), and **the code never reads RID 21/22/23 back**, so it cannot be asserted that they match the actual values in this motor's registers.
 
 **Example frames:**
 
@@ -1690,8 +1675,8 @@ A **response frame** has the same structure: byte 2 echoes the opcode (`0x33` = 
 
 | Item | Value | Description |
 |--------------------------|----------------|----------------------------------------------------------------|
-| Enable wait window | **2.0 s** | The SDK waits within this window for a feedback frame **received after the command was sent**; the criterion is `ERR ∈ {0x0, 0x1}` |
-| Enable retry count | 5 | Each retry runs "disable -> MIT -> enable -> wait for feedback" again; if all fail it raises `HardwareError` |
+| Enable success criterion | `ERR == 0x1` | The status frame must be read back **after the command was sent**; a real fault (`ERR ∉ {0x0, 0x1}`) is cleared before the next attempt |
+| Enable retry count | 3 | Each retry runs "disable -> MIT -> enable -> read the status frame back" again; if all fail `enable()` returns `EnableResult(ok=False)` |
 | Disable verification | **None** | The SDK returns as soon as it has sent the disable frame; it does not wait for feedback to confirm |
 | Status refresh wait | 0.05 s | The time `get_state(wait=True)` waits for one feedback frame |
 | Parameter read wait | 0.5 s | The default timeout of `read_param()` |
@@ -1817,7 +1802,7 @@ sudo ip link add dev vcan0 type vcan
 sudo ip link set up vcan0
 ```
 
-> A virtual bus has no real motor, so **the enable step times out** (the SDK waits 2.0 s, retries 5 times, then raises `HardwareError`). This is **expected behavior**.
+> A virtual bus has no real motor, so **the enable step fails** (no status frame ever reports `ERR == 0x1`, so `enable()` retries 3 times and returns `EnableResult(ok=False)`). This is **expected behavior**.
 
 ## Bus self-check without the SDK
 

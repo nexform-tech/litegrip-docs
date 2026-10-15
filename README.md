@@ -69,10 +69,7 @@ python3 -m pip install .
 | Requirements | ROS 2 Humble on Ubuntu 22.04, system Python 3.10 |
 
 The two joints take the **same sign** to move the fingers symmetrically, because their axes point
-opposite ways. The per-finger travel is `0.0425` m.
-
-That is `42.5 mm` per finger and **85 mm** of aperture across both, the same effective stroke the
-Product Manual specifies and the same `85.0` the SDK's `JAW_TRAVEL_MM` constant carries.
+opposite ways. The shipped model's per-finger travel default is `0.042726` m.
 
 ```bash
 ros2 launch litegrip_description display.launch.py

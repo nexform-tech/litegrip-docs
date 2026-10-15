@@ -59,9 +59,7 @@ python3 -m pip install .
 | launch 文件 | `display.launch.py`、`ros2_control.launch.py`、`gazebo.launch.py` |
 | 环境要求 | Ubuntu 22.04 上的 ROS 2 Humble，系统 Python 3.10 |
 
-两个关节轴向相反，因此**取相同符号**才会让两指对称运动。手指单侧行程为 `0.0425` m。
-
-即单指 `42.5 mm`、两指合计 **85 mm** 开口 —— 与《产品手册》标的有效行程、以及 SDK 几何常量 `JAW_TRAVEL_MM` 的 `85.0` 是同一个数。
+两个关节轴向相反，因此**取相同符号**才会让两指对称运动。随货模型的手指单侧行程默认值是 `0.042726` m。
 
 ```bash
 ros2 launch litegrip_description display.launch.py
