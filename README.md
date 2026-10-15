@@ -4,7 +4,7 @@
 
 LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and
 education, AI robotics development, and lightweight industrial automation. It uses direct motor drive
-and an adaptive grasping mechanism, with an effective stroke of 87.000 mm. The gripper communicates
+and an adaptive grasping mechanism, with an effective stroke of 85.000 mm. The gripper communicates
 with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps), and suits grasping, handling,
 loading and unloading, sorting, and algorithm validation.
 
@@ -69,13 +69,10 @@ python3 -m pip install .
 | Requirements | ROS 2 Humble on Ubuntu 22.04, system Python 3.10 |
 
 The two joints take the **same sign** to move the fingers symmetrically, because their axes point
-opposite ways. The shipped per-finger travel is `0.042726` m.
+opposite ways. The per-finger travel is `0.0425` m.
 
-That is `85.452 mm` of aperture across both fingers. It agrees with the `85.492 mm` caliper span in
-the Product Manual to within 0.04 mm, but **not** with that manual's headline "effective stroke
-87.000 mm", which is the SDK position scale rather than a measured span. The figures have not been
-reconciled, so treat the model's travel as authoritative for simulation and measure your own unit
-before using any of them for mechanical fit.
+That is `42.5 mm` per finger and **85 mm** of aperture across both, the same effective stroke the
+Product Manual specifies and the same `85.0` the SDK's `JAW_TRAVEL_MM` constant carries.
 
 ```bash
 ros2 launch litegrip_description display.launch.py

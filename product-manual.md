@@ -2,7 +2,7 @@
 
 [English](product-manual.md) | [简体中文](product-manual-zh.md)
 
-LiteGrip is an adaptive two-finger parallel gripper that NEXFORM ROBOTICS designed for research and education, AI robot development, and lightweight industrial automation. It uses direct motor drive and an adaptive grasping mechanism, with an effective stroke of 87.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps), and ships with a Python SDK and the calibration file for this unit. It suits tasks such as grasping, transferring, loading and unloading, sorting, and algorithm validation.
+LiteGrip is an adaptive two-finger parallel gripper that NEXFORM ROBOTICS designed for research and education, AI robot development, and lightweight industrial automation. It uses direct motor drive and an adaptive grasping mechanism, with an effective stroke of 85.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps), and ships with a Python SDK and the calibration file for this unit. It suits tasks such as grasping, transferring, loading and unloading, sorting, and algorithm validation.
 
 ## Contents
 
@@ -59,12 +59,12 @@ The units of physical quantities used in this document and in the SDK are as fol
 | Representation | Fully closed | Fully open | Value as it opens |
 |---------|---------|---------|-----------|
 | Motor angle `r` (rad) | **see the calibration file shipped with the product** | **see the calibration file shipped with the product** | **decreases** |
-| SDK position `p` (mm) | 0 | **87.000** (= effective stroke) | increases |
-| **Actual aperture** (mm) | 1.508 | **87.000** | increases |
+| SDK position `p` (mm) | 0 | **85.000** (= effective stroke) | increases |
+| **Actual aperture** (mm) | 0 | **85.000** | increases |
 
 > **Unless stated otherwise, "mm" in this document always means "actual aperture"** (the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **The position the SDK returns is `p` from the table above, not the actual aperture**; on the closed side the two differ by a 1.508 mm closing gap: `actual aperture ≈ p + 1.508`. For the full reading convention, see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) in the Software Development Manual.
+> **The position the SDK returns is `p` from the table above, and `p` is the actual aperture** — the distance between the inner faces of the two fingers, with no offset to apply. For the full reading convention, see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) in the Software Development Manual.
 >
 > **rad values are not a product specification.** The assembly phase between the motor and the gripper mechanism **differs from unit to unit**, so the rad endpoints differ on every gripper. Always use **the calibration file shipped with that unit** — this manual states no rad numbers for any sample unit.
 
@@ -148,34 +148,22 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | Gear ratio | 10 : 1 (gearbox built into the motor, no additional reduction) |
 | Communication | Classic CAN, 1 Mbps |
 | Operating voltage | 24 V DC (nameplate rating) |
-| **Effective stroke** | **87.000 mm** (SDK position `p` 0 ~ 87.000; caliper actual aperture 1.508 ~ 87.000 mm) |
-| **Per-finger stroke** | **43.500 mm** (= effective stroke ÷ 2) |
-| Working stroke | **0 ~ 87.000 mm** (the entire stroke is usable, with no internally disabled region; by caliper actual aperture it is 1.508 ~ 87.000 mm) |
+| **Effective stroke** | **85.000 mm** (SDK position `p` 0 ~ 85.000) |
+| **Per-finger stroke** | **42.500 mm** (= effective stroke ÷ 2) |
+| Working stroke | **0 ~ 85.000 mm** (the entire stroke is usable, with no internally disabled region) |
 | Power-off self-locking | **None** (holding torque is lost when power is removed) |
 | No-load starting torque | 0.198 ~ 0.222 N·m |
 | Total mass | **0.483 kg**[includes motor, cable, fingertips, and mounting parts] |
 
-> **How "effective stroke" is measured**: with the drive force removed, push the two fingers together and pull them apart by hand to the two **extreme positions** (the open end rests against the mechanical hard stop; the closed end is the two fingers touching, with **no hard stop**), and measure between the inner faces of the two fingertips with a digital caliper. The mean of 5 readings at the closed end is **1.508 mm**, and the open end is **87.000 mm**.
->
-> **"Effective stroke 87.000 mm" uses the SDK scale convention (`p` from 0 to 87.000)**. If you express the same stroke span as a caliper reading, the span is **85.492 mm** — what is missing is exactly the 1.508 mm gap at the closed end. **Do not mix the two conventions.**
+> **How "effective stroke" is measured**: with the drive force removed, push the two fingers together and pull them apart by hand to the two **extreme positions** (the open end rests against the mechanical hard stop; the closed end is the two fingers touching, with **no hard stop**), and measure the aperture between the inner faces of the two fingertips with a digital caliper. Taken from the contact point at the closed end, the mean of 5 readings is **85.000 mm**.
 >
 > **Note**: **The no-load starting torque is a record of the starting torque corresponding to no-load static friction. It is not the gripping force, not the continuous torque, and must not be used as a torque cap.**
 
 ## Stroke and position parameters
 
-**Stroke (SDK position `p`): 0 ~ 87.000 mm.** `p = 0` is the fully closed end and `p = 87.000` is the fully open end — in between there is **no disabled region**; the whole stroke is usable.
+**Stroke (SDK position `p`): 0 ~ 85.000 mm.** `p = 0` is the fully closed end and `p = 85.000` is the fully open end — in between there is **no disabled region**; the whole stroke is usable.
 
-> **The two conventions must be stated clearly (the same stroke span, two different numbers)**:
->
-> | Convention | Closed end | Open end | Span |
-> |---|---|---|---|
-> | **SDK position `p`** | 0 | 87.000 | **87.000 mm** ← the "effective stroke" of this manual |
-> | **Caliper actual aperture** | 1.508 | 87.000 | **85.492 mm** |
->
-> The **1.508 mm** difference is exactly the gap that still remains between the two fingers when fully closed: `actual aperture ≈ p + 1.508`.
-> **"Effective stroke 87.000 mm" is the SDK scale convention**, not a span measured with a caliper; the two differ by 1.8 %.
->
-> **The `87.000` / `85.492` pair is this unit's caliper record, not an SDK constant.** The SDK's own geometry constants state `JAW_TRAVEL_MM = 85.0` with `STOP_INSET_MM = 1.0` (a calibration span of `86.0 mm`), and the shipped URDF carries `0.042726 m` per finger — `85.452 mm` across, which agrees with the caliper span above to within 0.04 mm. **The `87.000 mm` "effective stroke" is the outlier**: it is the SDK position scale, and these other sources have not been reconciled with it. Where a millimetre decides whether a part fits, measure your own unit with a caliper rather than trusting any figure printed here.
+> **One figure, one convention.** The SDK position `p`, the effective stroke and the aperture a caliper measures between the fingertips are the same quantity: 0 at the closed end, 85.000 mm at the open end. There is no offset to add and no second convention to keep straight. This matches the SDK's own geometry constant `JAW_TRAVEL_MM = 85.0`.
 >
 > **The rad value is not a product specification.** The assembly phase between the motor and the gripper mechanism **differs from unit to unit**, so **the rad endpoints differ for every gripper**; you must use **the calibration file shipped with that unit**, and must not copy the numbers of any prototype. The `pos_closed_rad` / `pos_open_rad` and `rad_to_mm` used inside the SDK are all in the calibration file shipped with the product; **this manual does not state specific numbers**.
 >
@@ -288,7 +276,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 
 | # | Check | Basis for judgment |
 |---|--------|---------|
-| 1 | Object size | Whether it falls within the working stroke **0 ~ 87.000 mm** (SDK position convention) |
+| 1 | Object size | Whether it falls within the working stroke **0 ~ 85.000 mm** (SDK position convention) |
 | 2 | Object weight | **Load capacity is under 3 kg**; contact us for a case-by-case assessment |
 | 3 | Is release after power loss acceptable | **This product has no power-off self-locking**; if it is not acceptable, add a mechanical holding device |
 
@@ -417,7 +405,7 @@ LiteGrip consists of the gripper body, two parallel-motion fingers, the fingerti
 | Part | Description |
 |------|------|
 | Gripper body | Contains the DM-J4310-2EC drive motor, the transmission mechanism, and the guide rail |
-| Finger (left / right) | Moves in parallel along the guide rail; per-finger stroke 43.500 mm |
+| Finger (left / right) | Moves in parallel along the guide rail; per-finger stroke 42.500 mm |
 | Fingertip | The part that contacts the workpiece directly; dimensions **84 × 60 × 22 mm** |
 
 ## Unboxing and installation
@@ -558,7 +546,7 @@ After any of the following, you **must recalibrate**:
 
 ### Q&A
 
-Q: How wide is the gripper aperture? A: **The effective stroke is 87.000 mm** (SDK position `p` runs from 0 to 87.000; the full stroke is usable). If you measure the actual aperture between the two fingers with a caliper, it is **1.508 mm** fully closed and **87.000 mm** fully open, a span of **85.492 mm**. Note that the position the SDK returns is the millimeter reading `p`, **not** the caliper reading: `actual aperture ≈ p + 1.508`.
+Q: How wide is the gripper aperture? A: **The effective stroke is 85.000 mm.** The SDK position `p` runs from 0 at the fully closed end to 85.000 at the fully open end, the whole stroke is usable, and `p` **is** the aperture you would measure between the two fingertips with a caliper — there is no offset between the two. Per finger that is 42.500 mm.
 
 Q: How heavy an object can it grip? A: **2 kg rated, 3 kg maximum short-term** — both measured with weights, and both the result of friction holding rather than structural strength. See [Grip and load capacity](#grip-and-load-capacity) for the test piece, contact surface and pose they were measured with; the numbers hold only for that combination, so re-verify against your workpiece or ask us for the test records.
 

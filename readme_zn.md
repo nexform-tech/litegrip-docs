@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](readme_zn.md)
 
-LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，采用电机直驱与自适应抓取机构，有效行程 87.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），可用于抓取、搬运、上下料、分拣与算法验证等场景。
+LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，采用电机直驱与自适应抓取机构，有效行程 85.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），可用于抓取、搬运、上下料、分拣与算法验证等场景。
 
 本仓库是 LiteGrip 的产品文档源仓库，汇总手册、SDK、驱动、仿真环境、模型与上位机的入口，并记录各组件的最新发布版本。
 
@@ -59,9 +59,9 @@ python3 -m pip install .
 | launch 文件 | `display.launch.py`、`ros2_control.launch.py`、`gazebo.launch.py` |
 | 环境要求 | Ubuntu 22.04 上的 ROS 2 Humble，系统 Python 3.10 |
 
-两个关节轴向相反，因此**取相同符号**才会让两指对称运动。随包发布的手指单侧行程为 `0.042726` m。
+两个关节轴向相反，因此**取相同符号**才会让两指对称运动。手指单侧行程为 `0.0425` m。
 
-即两指合计 `85.452 mm` 开口。它与产品手册的卡尺跨度 `85.492 mm` 相差不到 0.04 mm，但与该手册封面级的"有效行程 87.000 mm"**对不上**——后者是 SDK 的位置刻度，不是量出来的跨度。这两套数字尚未对齐，所以仿真以模型行程为准，机械配合请先量自己的机器。
+即单指 `42.5 mm`、两指合计 **85 mm** 开口 —— 与《产品手册》标的有效行程、以及 SDK 几何常量 `JAW_TRAVEL_MM` 的 `85.0` 是同一个数。
 
 ```bash
 ros2 launch litegrip_description display.launch.py

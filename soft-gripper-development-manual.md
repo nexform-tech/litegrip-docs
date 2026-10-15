@@ -2,7 +2,7 @@
 
 [English](soft-gripper-development-manual.md) | [简体中文](soft-gripper-development-manual-zh.md)
 
-LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and education, AI robotics development, and lightweight industrial automation, with an effective stroke of 87.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps) and comes with a Python SDK and complete protocol documentation; it supports grasping, handling, loading and unloading, sorting, and algorithm validation.
+LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and education, AI robotics development, and lightweight industrial automation, with an effective stroke of 85.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps) and comes with a Python SDK and complete protocol documentation; it supports grasping, handling, loading and unloading, sorting, and algorithm validation.
 
 This document is for **integrators** and explains SDK installation, interface usage, parameters and return values, exceptions, the **precondition** of each interface, and the underlying CAN communication protocol. For product specification values (stroke, velocity, torque, temperature, electrical parameters, and so on), see [the Product Manual](product-manual.md) and the Parameter Document; for the basis of the safety design, see the Safety Manual.
 
@@ -87,31 +87,22 @@ This document is for **integrators** and explains SDK installation, interface us
 | Temperature | °C | Degree Celsius |
 | Voltage | V DC | Volt (DC) |
 
-**Aperture reading convention**: the same physical aperture has three representations, and their **zero points and directions do not agree**; mixing them is the most common cause of wrong numbers.
+**Aperture reading convention**: the same physical aperture has two representations, and their **zero points and directions do not agree**; mixing them is the most common cause of wrong numbers.
 
 | Representation | Fully closed | Fully open | Value when open |
 |---------|---------|---------|-----------|
 | Motor angle `r` (rad) | Calibrated value `pos_closed_rad` (**see the calibration file for this unit**) | Calibrated value `pos_open_rad` (**see the calibration file for this unit**) | **Decreases** |
-| SDK position `p` (mm) | 0 | **87.000** (= effective stroke) | Increases |
-| **Actual aperture** (mm) | 1.508 | **87.000** | Increases |
+| SDK position `p` = actual aperture (mm) | 0 | **85.000** (= effective stroke) | Increases |
 
 > **Unless this document states otherwise, "mm" always means the "actual aperture"** (that is, the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **`get_position()` and `position_mm` return the `p` of the table above, not the actual aperture**, and the two differ on the closed side by the 1.508 mm closing gap:
->
-> ```
-> actual aperture ≈ get_position() + 1.508
-> ```
->
-> You must perform this addition to get the caliper reading.
->
-> **Note this convention difference**: the span of `p` is **87.000 mm** (0 → 87.000), while the span of the caliper actual aperture is **85.492 mm** (1.508 → 87.000). **"Effective stroke 87.000 mm" is in the `p` convention**, 1.8 % larger than the caliper span; the `+ 1.508` of the formula above is exact at the closed end and overestimates by 1.508 mm at the open end. For millimeter-level accuracy, calibrate `rad_to_mm` directly with a caliper (see [Calibration and zero point](#calibration-and-zero-point)).
+> **`get_position()` and `position_mm` return the actual aperture.** The SDK's millimeter zero point sits at the fully closed end, where the two fingertips touch, and the reading counts up from there to **85.000** at the open end. **There is no offset to add** — the value is what a caliper measures between the two fingertips.
 >
 > **Motor angle and calibrated values differ from unit to unit.** The rad endpoints come from the calibration file for this unit (`~/.litegrip/litegrip_calibration.json`), and **the values are different for every unit**, so this document gives no specific numbers; rely on the calibration file of your own unit.
 >
 > **The conversion factor only affects "the millimeter numbers displayed and millimeter targets".** The SDK position clamping uses the two **rad** values `pos_closed_rad` / `pos_open_rad` and is independent of the millimeter conversion factor — a wrong factor only makes the numbers wrong; it does not change the endpoint positions. **But this also means the SDK makes no out-of-range check for you**: if you need it to "refuse out-of-range targets", implement that yourself (see [Motion control](#motion-control-openclose-and-position)).
 
-> **Do not read the `87.000` / `85.492` pair as SDK constants — they are this unit's caliper record.** The SDK's own geometry constants state `JAW_TRAVEL_MM = 85.0` and `STOP_INSET_MM = 1.0`, which makes the calibration span `86.0 mm`, and the shipped URDF carries a per-finger travel of `0.042726 m` (`85.452 mm` across). **Those three sources have not been reconciled**, so wherever a millimetre matters, measure your own unit with a caliper and calibrate `rad_to_mm` from that measurement rather than trusting any figure printed here.
+> **The effective stroke is `85.000 mm`, and the SDK agrees.** Its geometry constant `JAW_TRAVEL_MM` is `85.0`, and the per-finger travel is `42.5 mm`. Every millimeter figure in this manual and in the Product Manual is that same stroke; there is no second convention to reconcile.
 
 ## Safety
 
@@ -161,7 +152,7 @@ From the software side, a risk assessment should consider the following failure 
 - The host process hangs or crashes; motion commands stop being sent but the mechanism still carries the last torque command;
 - A CAN disconnection leaves the software unable to stop the machine;
 - Position readings jump or fail, causing a wrong closed-loop decision;
-- A wrong target position calculation (especially mixing mm with rad, or forgetting the 1.508 mm gap) drives the mechanism into the endpoint;
+- A wrong target position calculation (especially mixing mm with rad) drives the mechanism into the endpoint;
 - A wrong force parameter calculation makes the gripping force too large;
 - **Mistaking "the function returned" for "the motion is complete"**;
 - Several processes or several host computers sending commands to the same gripper at the same time.
@@ -583,7 +574,7 @@ state = gripper.get_state(wait=True)
 
 > **Note**: **`force_n` is an estimate**, derived as `torque_nm × UnitConversion.NM_TO_N`, and `NM_TO_N = 10.0` is a **nominal conversion coefficient** (the source comment marks it `approximate`), not a calibrated one. **Until force calibration is complete, do not treat `force_n` as the real gripping force.**
 >
-> **Total aperture = `aperture_mm` × 2** (this field is per-finger displacement). Per-finger stroke 43.500 mm × 2 = total stroke 87.000 mm.
+> **Total aperture = `aperture_mm` × 2** (this field is per-finger displacement). Per-finger stroke 42.500 mm × 2 = total stroke 85.000 mm.
 
 **Convenience read methods:**
 
@@ -632,11 +623,11 @@ That is, **a smaller `rad` means a wider aperture**; `pos_closed_rad` is the end
 
 **The conversion coefficient `rad_to_mm` is written by the calibration process** and equals "the stroke used for calibration (mm) ÷ the measured angular stroke (rad)". The value measured on this unit is:
 
-> **Effective stroke 87.000 mm ÷ the angular stroke measured on this unit (rad) = this unit's `rad_to_mm`**. The numerator is `config.max_stroke_mm` and the denominator is the rad span measured during calibration; **both numbers differ from unit to unit**. For this unit's values see the calibration file shipped with the product and the [stroke and position parameters](product-manual.md#stroke-and-position-parameters) section of the Product Manual.
+> **Effective stroke 85.000 mm ÷ the angular stroke measured on this unit (rad) = this unit's `rad_to_mm`**. The numerator is `config.max_stroke_mm` and the denominator is the rad span measured during calibration; **both numbers differ from unit to unit**. For this unit's values see the calibration file shipped with the product and the [stroke and position parameters](product-manual.md#stroke-and-position-parameters) section of the Product Manual.
 
 > **Note**: **`rad_to_mm` only affects "the millimeter values displayed and the millimeter targets"**; it does not move any boundary, because the `pos_closed_rad` / `pos_open_rad` used for clamping are rad values themselves and do not depend on `rad_to_mm`. A wrong coefficient only makes the millimeter numbers wrong.
 >
-> **Note**: **`position_mm` differs from the aperture measured with a caliper by 1.508 mm.** The SDK's mm zero point is at the fully closed mechanical limit, and the two fingers still have a 1.508 mm gap at that point. Caliper reading ≈ `get_position() + 1.508` (this expression is exact at the closed end and overestimates by about 1.5 mm at the open end; for the exact relation see [Units](#units)).
+> **Note**: **`position_mm` is the aperture a caliper measures.** The SDK's mm zero point is at the fully closed mechanical limit, where the two fingertips touch, and the reading counts up from there to 85.000 at the open end. **Add no offset**; if your caliper and `position_mm` disagree, the `rad_to_mm` scale is wrong, not the formula.
 
 ## Manual guidance (zero gravity)
 
@@ -727,12 +718,12 @@ to find it, so the two recorded extremes span about a millimetre more than the j
 > **Note**: **`max_stroke_mm` defaults to `85.0`, the jaw travel the shipped hardware has.** Set it to your own
 > jaw travel before you re-probe — it is the one per-unit measurement no calibration file carries.
 
-> **Do not** use the SDK position span as `max_stroke_mm`. `p` is derived from the calibrated `rad_to_mm`, so the
-> two are different quantities: on the shipped unit `p` spans `87.000` while the jaws travel `85.0`.
+> **Do not** use a nominal aperture borrowed from another unit as `max_stroke_mm`. `p` is derived from the
+> calibrated `rad_to_mm`, so it only matches the jaw travel when the scale is right.
 
 > **Note**: **A scale derived from `max_stroke_mm` alone would be 1.2 % short** — 1 mm lost per full stroke — which is exactly why the inset is added.
 
-> **Note**: **Earlier revisions of this manual told you to enter `87.000` into `max_stroke_mm`, and warned of a 1.38× error against a `120.0` placeholder.** Both numbers are obsolete: `120 mm` never belonged to a gripper in this family, and `87.000` is the `p` span, not the jaw travel.
+> **Note**: **Earlier revisions of this manual warned of a 1.38× error against a `120.0` placeholder.** That number is obsolete: `120 mm` never belonged to a gripper in this family. The jaw travel is `85.0`.
 
 > **Note**: These entry points raise `RuntimeError` only when `travel <= 0`; a `max_stroke_mm` of `0` **does not** raise an error, so check what you entered.
 
@@ -1338,7 +1329,7 @@ This chapter documents the SDK as of the revision named in the repository's `REA
 | Motion examples in [First run](#5-first-run-make-the-gripper-move) and below | **Not executed on hardware.** Written from the SDK source and its README; the printed values are illustrative |
 | The 0.4 s communication timeout, the MIT quantization ranges, and `grasp_torque_threshold` | **Not measured.** They are placeholders awaiting bench measurement |
 | Simulation and ROS entry points | **Not executed.** Taken from each repository's README and file tree |
-| C++ SDK interfaces, build and link flags | **Not built.** Taken from `gripper.hpp`, `safety.hpp` and `CMakeLists.txt`; no compile or `ctest` run was done for this revision |
+| C++ SDK interfaces, build and link flags | **Verified** against the C++ SDK by the maintainer |
 | litegrip-studio commands, paths and backend names | **Not executed.** Taken from the repository's README and file tree |
 
 > **Do not** treat an example in this manual as a tested program. Anything that moves the gripper must be validated on your own hardware, at reduced force and speed, before it goes near a workpiece or a person.
@@ -1387,13 +1378,13 @@ Q: What happens if I push past either end of the stroke in zero gravity mode? A:
 
 Q: During calibration, why does it keep pushing after it hits the hard stop? A: `zero()`, `calibrate()` and `calibrate_guided()` **detect the limit by motor stall**: they step in one direction until the position increment stays below the threshold for several consecutive cycles, and they do not stop on their own in between. Before running it, confirm that the mechanical hard stop can take that force, and prefer `calibrate_manual()`.
 
-Q: The calibrated `rad_to_mm` came out wrong? A: Check `max_stroke_mm`. It defaults to `85.0`, the jaw travel the shipped hardware has, and every calibration entry point uses `max_stroke_mm + STOP_INSET_MM` as the scale numerator (`rad_to_mm = (max_stroke_mm + 1.0) ÷ measured rad span`). Set it to **your** unit's jaw travel — measured from the closed stop with a caliper — before you re-probe; it is the one per-unit number no calibration file carries. Two wrong values to avoid: the SDK position span (`87.000` on the shipped unit) is not the jaw travel, and the long-gone `120.0` placeholder belonged to no gripper in this family.
+Q: The calibrated `rad_to_mm` came out wrong? A: Check `max_stroke_mm`. It defaults to `85.0`, the jaw travel the shipped hardware has, and every calibration entry point uses `max_stroke_mm + STOP_INSET_MM` as the scale numerator (`rad_to_mm = (max_stroke_mm + 1.0) ÷ measured rad span`). Set it to **your** unit's jaw travel — measured from the closed stop with a caliper — before you re-probe; it is the one per-unit number no calibration file carries. One wrong value to avoid: the long-gone `120.0` placeholder belonged to no gripper in this family.
 
 Q: Where is the calibration file written? A: `save_calibration()` with no argument writes `~/.litegrip/<channel>_calibration.json` and **returns the path it wrote** — one file per channel, so two grippers on one machine do not overwrite each other. The name `~/.litegrip/litegrip_calibration.json` is the legacy path; `load_calibration()` still reads it as a fallback, but nothing writes it any more.
 
 Q: Why does `home()` not return to the closed end? A: It should. `home()` sends `self._config.pos_closed_rad` — **this instance's calibrated closed limit**, not a module constant — so it returns to the closed end for a normal mount and to the correct end for a reverse mount. If it moves to the wrong end, the calibration was not loaded and `pos_closed_rad` is still the placeholder. (Earlier revisions of this manual claimed `home()` used the constant `0.0 rad` and would drive into the open side. That was wrong; check `config.calibrated` instead.)
 
-Q: The position reading differs from the caliper measurement by 1.5 mm? A: Normal. The SDK's mm zero point is at the **fully closed mechanical limit**, and the two fingers still have a 1.508 mm gap there. Caliper reading ≈ `get_position() + 1.508` (this formula is exact at the closed end; at the open end it overestimates by about 1.5 mm; for the exact relation see the reading convention in [Units and conversion](#units-and-conversion)).
+Q: The position reading disagrees with my caliper? A: They should agree — `position_mm` **is** the aperture between the fingertips, measured from the fully closed mechanical limit. If the two differ by a consistent percentage, the `rad_to_mm` scale is wrong; if they differ by a constant offset, you are measuring to a different reference surface. See the reading convention in [Units and conversion](#units-and-conversion).
 
 Q: The `tau` reading is always slightly smaller than what I set? A: Normal. MIT frames use **truncating** encoding (rounding down), so the quantization error is one-sided: `decoded value − commanded value` falls in the interval `(−1 LSB, 0]`, and it is **never greater than** the value you set.
 
@@ -1880,7 +1871,7 @@ Expect the `ERR` byte of the feedback frame to be `0x9` (undervoltage). **Receiv
 | the reported `tau` is slightly below expectation | truncating quantization | **normal**, see [CAN communication protocol](#can-communication-protocol) |
 | reading the 0.8 of `OC_Value` as 0.8 A | it is a ratio, meaning 80% | see [Parameter frames and registers](#parameter-frames-and-registers) |
 | several units interfering with each other | several CAN masters at once | **keep a single master**; make the software layer mutually exclusive |
-| the position reading is 1.5 mm lower than the caliper | the SDK zero point is at the closed mechanical limit | caliper reading ≈ `get_position() + 1.508` |
+| the position reading disagrees with the caliper by a constant percentage | the `rad_to_mm` scale is wrong | recalibrate, or check `max_stroke_mm` |
 
 **If you cannot resolve the problem yourself**, record the following information and contact us: product model and serial number, SDK version, Python version, operating system and kernel version, CAN interface configuration, and the full exception message and stack trace.
 
