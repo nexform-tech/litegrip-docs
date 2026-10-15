@@ -54,13 +54,12 @@ The units of physical quantities used in this document and in the SDK are as fol
 | Temperature | °C | degrees Celsius |
 | Voltage | V DC | volt (DC) |
 
-**Aperture reading convention**: one physical aperture has three representations, and **their zero points and directions all differ**; mixing them is the most common cause of wrong numbers.
+**Aperture reading convention**: one physical aperture has two representations, and **their zero points and directions do not agree**; mixing them is the most common cause of wrong numbers.
 
 | Representation | Fully closed | Fully open | Value as it opens |
 |---------|---------|---------|-----------|
 | Motor angle `r` (rad) | **see the calibration file shipped with the product** | **see the calibration file shipped with the product** | **decreases** |
-| SDK position `p` (mm) | 0 | **85.000** (= effective stroke) | increases |
-| **Actual aperture** (mm) | 0 | **85.000** | increases |
+| SDK position `p` = actual aperture (mm) | 0 | **85.000** (= effective stroke) | increases |
 
 > **Unless stated otherwise, "mm" in this document always means "actual aperture"** (the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
