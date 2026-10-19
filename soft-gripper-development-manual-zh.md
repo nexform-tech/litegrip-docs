@@ -95,11 +95,11 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 
 > **本文档未特别说明时，"mm"一律指"实际开口"**（即两指内侧面之间的真实距离），因为那是可以用卡尺直接量到的量。
 >
-> **`get_position()` 与 `position_mm` 返回的就是实际开口。** SDK 的毫米零点在两指相碰的机械全闭处，读数从那里往上涨；完全张开的开口为 **85.000**。它就是卡尺在两指指尖之间量到的数 —— **不是电机角度，也不是单指位移**。以顶到张开端机械挡块结束的运动读数会大约多 **1 mm**（`STOP_INSET_MM = 1.0`），因为标定探针就是在那里找到端点的。
+> **`get_position()` 与 `position_mm` 返回的就是实际开口。** SDK 的毫米零点在两指相碰的机械全闭处，读数从那里往上涨；完全张开的开口为 **85.000**。它就是卡尺在两指指尖之间量到的数 —— **不是电机角度，也不是单指位移**。以顶到张开端机械挡块结束的运动（即未配置 `work_stroke_mm` 时的 `open()`）读数会大约多 **1 mm**（`STOP_INSET_MM = 1.0`），因为标定探针就是在那里找到端点的。
 >
 > **电机角度与标定值因台而异。** rad 端点取自本机标定文件（`~/.litegrip/litegrip_calibration.json`），**每台机器的数值都不同**，所以本文档不写具体数字，请以自己那台的标定文件为准。
 >
-> **换算系数只影响"显示出来的毫米数与毫米目标"。** SDK 的位置钳制用的是 `pos_closed_rad` / `pos_open_rad` 两个 **rad** 值，与毫米换算系数无关 —— 系数写错只会让数字不对，不会改变端点位置。**但这也意味着 SDK 不替你做任何越界判断**：需要"越界就拒答"请自己实现（见 [运动控制（开合与位置）](#运动控制开合与位置)）。
+> **换算系数只影响"显示出来的毫米数与毫米目标"。** SDK 的位置钳制用的是 `pos_closed_rad` / `pos_open_rad` 两个 **rad** 值，与毫米换算系数无关 —— 系数写错只会让数字不对，不会改变端点位置。**但这也意味着 SDK 不会替你拒绝越界的位置目标** —— 它只会钳位：需要"越界就拒绝"的语义请自己实现（见 [运动控制（开合与位置）](#运动控制开合与位置)）。
 
 > **有效行程就是 `85.000 mm`，SDK 与之一致。** SDK 的几何常量 `JAW_TRAVEL_MM` 是 `85.0`，单指行程是 `42.5 mm`。本手册与《产品手册》里的每一个毫米数都指同一段行程，没有第二套口径需要对账。
 
@@ -124,16 +124,16 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 
 | 层级 | 由谁实现 | 保护什么 |
 |------|---------|---------|
-| 越界判断 | **集成方自行实现** | 命令不越界（SDK 本身不做任何越界判断） |
+| 越界判断 | 集成方，加上 SDK 的逐帧检查 | 命令不越界；非有限值和超量程前馈力矩会被拒绝，但位置目标与增益只是被钳位 |
 | 驱动器级保护 | 电机驱动器固件 | 过压 / 欠压 / 过流 / 过温 / 掉线 |
 | 物理挡块与硬件急停 | **必须由集成方配置** | 机械不越界、真正断电停机 |
 
-1. **SDK 不做越界判断。** 位置目标超出标定行程时会被**静默钳制**到端点（见 [运动控制（开合与位置）](#运动控制开合与位置)），既不报错也不告知；`kp` / `kd` / `tau` 越界会被**静默饱和**。"命令不越界"必须由集成方自己实现。
+1. **SDK 会逐帧检查，但它不是安全限位。** 位置目标超出标定行程时会被**静默钳制**到端点（见 [运动控制（开合与位置）](#运动控制开合与位置)），`kp` / `kd` / `dq` 越界会被**静默饱和**到编码量程，既不报错也不告知。非有限值会抛 `CommandError`，前馈 `tau` 超出电机型号的帧量程（DM4310 为 `±10 N·m`）也会抛。"命令不越界"仍然必须由集成方实现。
 2. **必须配置硬件急停回路，且其动作不依赖 CAN 通信与上位机软件。** 进程卡死、CAN 掉线、Python 异常时软件侧无法停机。
 3. **必须配置机械挡块**作为最后一道防线。标定端点不是硬限位。
 4. **不要把软件停止当作安全功能使用。** `stop()` 只发零力矩帧、电机保持使能且可被反驱，并且不返回成功与否；`disable()` 的返回值也只表示命令已发出、未获证实（见 [使能、失能与故障处理](#使能失能与故障处理)）。二者都无法替代硬件急停。
 5. **不要把返回值当作"命令已生效"的证据。** 运动接口的返回值只表示帧发出去了，只有反馈帧能证明实际状态。
-6. **不要在力标定完成前使用任何力参数。** `force_n` 换算用的是名义系数 `0.1 N·m/N`，SDK 既不校验也不限幅（见 [抓取与力控](#抓取与力控)）。
+6. **不要在力标定完成前使用任何力参数。** `force_n` 换算用的是名义系数 `0.1 N·m/N`，SDK 不按真实负载校验，也不做数值限幅；只有非有限值会被拒绝（见 [抓取与力控](#抓取与力控)）。
 7. 运行期间必须有周期性帧发送，否则驱动器在 0.4 s 后**自动退出使能**（回读 RID 9 核对）；**该超时保护可以关闭，关闭后掉线时电机将保持最后一条力矩指令**，请勿在未经评估时关闭。
 8. 调试与标定**必须有人在场监护**，且硬件急停可用。
 9. 发现异常（异响、卡顿、异常温升、位置读数跳变）应**立即停机并切断 24 V**，再排查。
@@ -166,7 +166,7 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 
 使用者须通过风险评估判断相关危险是否构成不可接受的风险并采取相应措施。夹爪不适合无专业人员指导且不具备完全民事行为能力的人士使用。
 
-> **注意**：**本 SDK 不做安全判断。** 越界目标被**静默钳制**到标定端点、力参数**不做任何校验**、`kp` / `kd` / `tau` 越界被**静默饱和** —— 这三种情形都**不会报错**。各接口的前置条件也只有"已连接"与"已使能"两项，见 [前置条件与调用约束](#前置条件与调用约束)。**建议先读那一节，再读具体接口。**
+> **注意**：**本 SDK 不做安全判断。** 越界目标被**静默钳制**到标定端点、`kp` / `kd` / `dq` 越界被**静默饱和**、`force_n` 的数值范围不做校验。非有限值、以及超出电机型号帧量程的前馈 `tau` 会抛 `CommandError`；钳位与饱和则不会。各接口的前置条件也只有"已连接"与"已使能"两项，见 [前置条件与调用约束](#前置条件与调用约束)。**建议先读那一节，再读具体接口。**
 
 # SDK 使用指南
 
@@ -183,7 +183,7 @@ LiteGrip 的 Python SDK 是 `litegrip` 包。它封装达妙 **DM-J4310-2EC** �
 | **运动前必须先有标定** | `connect()` **不会**加载标定；在加载之前，每个运动接口都抛 `CommandError`，而不是跑在占位系数上（见 [前置条件与调用约束](#前置条件与调用约束)） |
 | **驱动保护不重复实现** | 过压 / 欠压 / 过流 / 过温 / 断线保护由 DM-J4310-2EC 驱动固件负责 |
 
-> **注意**：**本 SDK 不实现"安全限位"。** 越界目标会被钳位；`kp` / `kd` / `tau` 超出编码范围会被静默饱和；力设定值是近似换算，而非标定过的测量值。**防止夹伤工件或夹伤人的措施必须由集成方在软件或硬件上实现。**
+> **注意**：**本 SDK 不实现"安全限位"。** 越界目标会被钳位；`kp` / `kd` / `dq` 超出编码范围会被静默饱和，超出型号量程的 `tau` 会被拒绝；力设定值是近似换算，而非标定过的测量值。**防止夹伤工件或夹伤人的措施必须由集成方在软件或硬件上实现。**
 
 **支持环境：**
 
@@ -335,7 +335,7 @@ with LiteGrip(channel="can0", can_id=0x08) as gripper:
     gripper.load_calibration()   # SDK 内置的出厂标定
     gripper.enable()             # 重试到状态帧报 err == 1 为止
 
-    gripper.open()                                     # 以 50 mm/s 顶到张开侧限位
+    gripper.open()                                     # 50 mm/s；随包标定会停在 80 mm
     gripper.close()                                    # 以 50 mm/s 顶到闭合侧限位
     result = gripper.grasp(force_n=20.0, hold_s=3.0)   # 闭合到夹住，再保持 20 N
     print(result.reached, result.stalled, result.cycles)
@@ -354,7 +354,7 @@ python3 first_move.py
 | `with LiteGrip(...) as gripper:` | 打开 CAN 总线并注册电机。离开 with 块时调用 `disconnect()`，默认会先失能电机 |
 | `gripper.load_calibration()` | 把本台的行程端点与毫米刻度读进 `config` |
 | `gripper.enable()` | 先清除已锁存的故障，再使能，然后**等状态帧报 `err == 1`**。返回 `EnableResult` |
-| `gripper.open()` | 朝张开侧斜坡运动，直到机械限位结束这段运动。返回 `MoveResult` |
+| `gripper.open()` | 朝张开侧斜坡运动。随包标定（`work_stroke_mm = 80.0`）下停在 80 mm；未设工作行程时才顶到机械限位结束。返回 `MoveResult` |
 | `gripper.close()` | 在闭合侧做同样的事 |
 | `gripper.grasp(force_n=20.0, hold_s=3.0)` | 闭合到物体上——夹口之间没有东西时则闭合到闭合侧限位——再保持 `force_n` 3 秒。返回 `GraspResult` |
 
@@ -364,9 +364,9 @@ python3 first_move.py
 False True 12
 ```
 
-`stalled=True` 表示位置停止变化，也就是手指碰到物体的情形。`reached` 为 `False` 是因为夹口没到目标角度。`cycles` 是闭合阶段跑了多少个控制周期。**要看的是 `result.ok`，不是 `reached`**：夹住东西的抓取会报 `ok=True`、`stalled=True`。
+`stalled=True` 表示位置停止变化，也就是手指碰到物体的情形。`reached` 为 `False` 是因为夹口没到目标角度。`cycles` 是保持阶段跑了多少个**保持片**（`hold_s / hold_interval`，本例约 15）。**要看的是 `result.ok`，不是 `reached`**：夹住东西的抓取会报 `ok=True`、`stalled=True`。
 
-> **不要**指望抓住东西时 `reached=True`。抓取场景里 `stalled=True`、`reached=False` 才是成功。`open()` 和 `close()` 恰好相反：它们是靠顶住机械限位来成功的，所以 `ok=True` 总是伴随 `stalled=True`。
+> **不要**指望抓住东西时 `reached=True`。抓取场景里 `stalled=True`、`reached=False` 才是成功。`close()` 也是如此：它靠顶住闭合侧限位来成功，所以 `ok=True` 伴随 `stalled=True`。`open()` 只在没有配置 `work_stroke_mm` 时才顶限位；随包标定（`80.0 mm`）下它是一次普通定位，`ok=True` 伴随 `reached=True`。
 
 > **注意**：这三段示例的接口名、签名与默认值都已对照 SDK 核过；打印出来的是示例数值，你的 `cycles` 计数和具体位置都会不同。
 
@@ -432,8 +432,8 @@ gripper.clear_fault()   # 清驱动故障
 
 | 方法 | 目标 | 说明 |
 |------------------------|--------------------------------------------|--------------------------------|
-| `open()` | 越过标定的张开端点 | 斜坡顶到张开侧机械限位，由限位结束运动。设置了 `GripperConfig.work_stroke_mm` 时改为停在该开口——随包标定写的是 `80.0`；返回 `MoveResult` |
-| `close()` | 越过标定的闭合端点 | 在闭合侧做同样的事；`work_stroke_mm` 不改变闭合的终点。要出力抓取请用 `grasp()` |
+| `open()` | `work_stroke_mm`，或张开端点 | `0 < work_stroke_mm < 行程` 时停在该开口——随包标定写的是 `80.0`，所以 `open()` 不会碰到限位。否则斜坡顶到张开侧机械限位，由限位结束运动；返回 `MoveResult` |
+| `close()` | 标定的闭合端点 | 斜坡顶到闭合侧限位，由堵转结束运动。下发的帧始终在标定行程内；`work_stroke_mm` 不改变闭合的终点。要出力抓取请用 `grasp()` |
 | `grasp()` | 闭合到堵转，然后保持力 | 返回 `GraspResult`；见 [抓取与力控](#抓取与力控) |
 | `zero()` | 依次到两端 | 完整标定；返回 `CalibrationData` |
 | `home()` | `config.pos_closed_rad` | 斜坡走到标定的闭合位置——是停在零点**上**，不是顶上去；返回 `MoveResult` |
@@ -442,7 +442,7 @@ gripper.clear_fault()   # 清驱动故障
 | `move_to()` | 绝对位置（rad） | 它就是 `goto_rad()`，只是默认时长更长 |
 | `move_at_speed()` | 定线速度运动 | 端点同样被钳位 |
 | `move_at_speed_rad()` | 定角速度运动 | 端点同样被钳位 |
-| `send_mit_frame()` | 直接发一帧 MIT | 专家接口，**不钳位、不查饱和** |
+| `send_mit_frame()` | 直接发一帧 MIT | 专家接口：**不按标定行程钳位**。帧量程检查仍会执行：非有限值、超出型号量程的 `tau` 会抛 `CommandError` |
 
 **通用参数**（`kp` / `kd` 省略时取 `config` 中的值）：
 
@@ -481,19 +481,20 @@ send_mit_frame(q, kp, kd, dq=0.0, tau=0.0) -> bool
 with LiteGrip(channel="can0", mst_id=0x18) as gripper:
     gripper.load_calibration()      # 先加载标定
     gripper.enable()
-    gripper.open()                  # 顶到标定的张开限位
+    gripper.open()                  # 随包标定：停在 80 mm
     gripper.goto(60.0)              # 走到 60 mm
     gripper.close()                 # 顶到标定的闭合限位
 ```
 
 > **注意**：**超出标定端点的目标会被静默钳位。** `goto_rad()` 内部是
-> `position_rad = max(pos_open_rad, min(pos_closed_rad, position_rad))`，
-> `move_at_speed_rad()` 同样把端点钳到 `[pos_open_rad, pos_closed_rad]`。
+> `position_rad = min(hi, max(lo, position_rad))`，其中 `lo = min(pos_closed_rad, pos_open_rad)`、
+> `hi = max(pos_closed_rad, pos_open_rad)` —— 反装时同样成立。
+> `move_at_speed_rad()` 也按同样的方式钳制端点。
 > **它不抛异常，也不告诉你钳过。** 需要"越界就拒绝"的语义，请在调用前自己判断。
 
-> **注意**：**`open()` 与 `close()` 是故意越过标定限位的。** 由机械限位结束运动，所以成功的 `open()` 会报 `stalled=True`：夹口正以很小的压紧力矩抵在限位上。做全开或全闭时这是有意的，但这也意味着调用后的位置不是标定端点——需要真实停止位置就读 `result.state.position_mm`。想停在限位之前，请用 `goto()`。
+> **注意**：**`close()` 顶住闭合侧限位；`open()` 只在没有工作行程时才顶限位。** 下发的帧会被钳制在标定行程内，所以即使目标放在标定端点之外，指令也不会越过去。`close()` 在闭合限位上堵转才算成功，因此 `ok=True` 伴随 `stalled=True`。随包标定 `work_stroke_mm = 80.0` 时，`open()` 是一次普通定位，停在 80 mm，`ok = reached and not stalled`，根本碰不到限位。需要真实停止位置就读 `result.state.position_mm`。想停在限位之前，请用 `goto()`。
 
-> **注意**：**`send_mit_frame()` 完全不钳位、不查范围。** 它只检查"已连接、已使能"；越界的 `q` 原样发出；`kp` / `kd` / `tau` 超出编码范围时在编码阶段被静默饱和到 `[0, 500]` / `[0, 5]` / `[−10, 10]`。除非你要自己控制单帧时序，否则请用高层接口。
+> **注意**：**`send_mit_frame()` 不按标定行程钳位。** 它检查"已连接、已使能"，然后用 `CommandError` 拒绝非有限的 `q` / `kp` / `kd` / `dq` / `tau`，以及超出电机型号帧量程的 `tau`（DM4310 为 `±10 N·m`）。有限的 `q` 越出标定行程时原样发出；`kp` / `kd` / `dq` / `tau` 在编码阶段被钳到 `[0, 500]` / `[0, 5]` / `±30 rad/s` / `±10 N·m`。除非你要自己控制单帧时序，否则请用高层接口。
 
 > **注意**：**速度是"时长分配"，不是"速度限制"。** `duration` 只决定这一串帧持续多久——帧以 200 Hz（5 ms 周期）发出，位置目标在整个时长内平滑过渡。要真正限制最大速度，请用 `move_at_speed()` / `move_at_speed_rad()`，它们按给定速度算出目标序列。
 
@@ -518,7 +519,7 @@ grasp(force_n=None, hold_s=0.0, *, progress=None) -> GraspResult
 | `stalled` | 位置停止变化——**夹住物体时的正常结果** |
 | `state` | 保持结束时的 `GripperState` |
 | `target_rad` / `force_n` | 目标角度与所保持的力 |
-| `cycles` | 闭合阶段跑过的控制周期数。`0` 表示保持阶段根本没进入 |
+| `cycles` | 保持阶段跑过的保持片数（`hold_s / hold_interval`）。`0` 表示保持阶段根本没进入 |
 | `travel_guard` | 失控看门狗触发并卸掉了力矩，见下文 |
 
 > **注意**：**成功的抓取报的是 `stalled=True`、`reached=False`。** 因为堵转判据是位置式的，夹住物体和走到行程端点对它来说是一样的——**光靠这两个标志分不出"夹到东西"和"空夹到限位"。** 请配合 `get_position()`：空夹会停在闭合端点，夹到物体则停在端点之前。
@@ -529,12 +530,14 @@ grasp(force_n=None, hold_s=0.0, *, progress=None) -> GraspResult
 
 > **不要**在 `travel_guard` 触发之后直接再调一次 `grasp()`：闭合段会再次逼近同一个限位，保持阶段也会再次压上去。
 
-> **注意**：**力参数既没标定也不做校验。** `force_n` 按标称系数 `UnitConversion.N_TO_NM = 0.1 N·m/N` 换算，负值就按负力矩发。`force_n=20.0` 对应 `2.0 N·m` 前馈，是力矩编码上限 `10 N·m` 的五分之一。
+> **注意**：**力参数既没标定，数值范围也不做校验。** `force_n` 按标称系数 `UnitConversion.N_TO_NM = 0.1 N·m/N` 换算，负值就按负力矩发；只有非有限值会抛 `CommandError`。`force_n=20.0` 对应 `2.0 N·m` 前馈，是力矩编码上限 `10 N·m` 的五分之一。
 >
 > ```python
-> gripper.grasp(force_n=0)      # 只按位置闭合：不加前馈力矩
-> gripper.grasp()               # 取 MotionConfig.force_n（20 N）→ 2.0 N·m 前馈
+> gripper.grasp(force_n=0, hold_s=3.0)  # 零前馈力矩；保持帧什么也不保持
+> gripper.grasp()                       # 取 MotionConfig.force_n（20 N）→ 2.0 N·m 前馈
 > ```
+>
+> **`force_n=0` 不是位置保持。** 保持帧的 `kp = kd = 0` 且力矩为零，夹口是松的，没有任何东西保持位置。默认 `hold_s=0.0` 时保持阶段没有截止时间，调用不会自行返回——要"接触即停"的位置抓取请用 `close()`。
 
 > **注意**：**`force_n` 的物理含义没有标定过。** `0.1 N·m/N` 是标称换算系数；**在力标定完成之前，不要把它用于安全决策或负载设计**。
 
@@ -584,7 +587,7 @@ state = gripper.get_state(wait=True)
 | `get_torque()` | 力矩（N·m） |
 | `get_error()` | 错误码 |
 | `get_temperature()` | `(MOS 温度, 线圈温度)` |
-| `get_info()` | `GripperInfo` —— 型号、电机型号、CAN ID、固件版本、序列号 |
+| `get_info()` | `GripperInfo` —— 型号、电机型号、CAN ID。`firmware_version` 与 `serial_number` 字段存在但返回空值；需要时用 `read_param()` 读 `sw_ver` 与 `SN` |
 | `refresh_status()` | 主动向电机要一帧状态帧（`0xCC`），**不移动夹口**。空闲过的夹爪在读 `get_state()` 之前先用它 |
 
 **状态判定方法：**
@@ -626,7 +629,7 @@ position_mm = (config.pos_closed_rad - position_rad) * config.close_sign * confi
 
 > **注意**：**`rad_to_mm` 只影响"显示的毫米数与毫米目标"**；它不动任何边界，因为钳位用的 `pos_closed_rad` / `pos_open_rad` 本身就是 rad 值，不依赖 `rad_to_mm`。系数错了只是毫米数不对。
 >
-> **注意**：**`position_mm` 就是卡尺量到的开口。** SDK 的 mm 零点在机械全闭处（两指相碰），读数从那里往上涨；完全张开的开口是 85.000，顶到张开端挡块的运动读数会大约多 1 mm（`STOP_INSET_MM = 1.0`）。若卡尺读数与 `position_mm` 的差值超出这个范围，说明 `rad_to_mm` 标错了，不是公式不对。
+> **注意**：**`position_mm` 就是卡尺量到的开口。** SDK 的 mm 零点在机械全闭处（两指相碰），读数从那里往上涨；完全张开的开口是 85.000，顶到张开端挡块的运动（未配置 `work_stroke_mm` 时的 `open()`）读数会大约多 1 mm（`STOP_INSET_MM = 1.0`）。若卡尺读数与 `position_mm` 的差值超出这个范围，说明 `rad_to_mm` 标错了，不是公式不对。
 
 ## 手动示教（零重力）
 
@@ -649,7 +652,7 @@ gripper.exit_zero_gravity()        # 保持当前位置
 
 **`exit_zero_gravity()`** —— 退出零重力模式，以当前位置为目标、用 `config.kp` / `config.kd` 闭环保持。
 
-> **注意**：**退出时不校验位置。** 如果手推把手指推到了行程之外，`exit_zero_gravity()` 会直接把实测位置当目标用（`send_mit_frame` 这条路不经过钳位）；只有之后调用普通运动接口时，目标才会被钳回标定端点。
+> **注意**：**退出时不校验位置。** 如果手推把手指推到了行程之外，`exit_zero_gravity()` 会直接把实测位置当目标用（`send_mit_frame` 这条路不经过行程钳位，但帧量程检查仍然生效）；只有之后调用普通运动接口时，目标才会被钳回标定端点。
 
 > **手动示教只有上面两个零重力原语。** 要做"抓一下再松开"的循环，请自己组合 `enter_zero_gravity()` / `exit_zero_gravity()` / `grasp()`。
 
@@ -693,7 +696,7 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 
 | 方法 | 签名与说明 |
 |------|-----------|
-| `save_calibration(path=None) -> str` | `path=None` 时写 `~/.litegrip/<channel>_calibration.json`，并**返回写入的绝对路径**。一个通道一个文件，这样同一台机器上的两个夹爪不会互相覆盖 |
+| `save_calibration(path=None) -> str` | `path=None` 时，设置了 `LITEGRIP_CALIB` 就写到该变量指定的文件，否则写 `~/.litegrip/<channel>_calibration.json`，并**返回写入的绝对路径**。一个通道一个文件，这样同一台机器上的两个夹爪不会互相覆盖 |
 | `load_calibration(path=None, template=None) -> bool` | 把标定加载进 `config`。请在 `connect()` 之后、`enable()` 之前调用 |
 | `load_template(name) -> bool` | 加载 `"normal"` 或 `"reverse"` 安装模板，声明安装方向。`name` 必须是 `list_templates()` 之一 |
 
@@ -764,7 +767,7 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 | `connect` / `disconnect` | — | — | — | 除非 `disable_on_disconnect` 为 `False`，`disconnect()` 会先试 `disable()` |
 | `enable` / `disable` / `clear_fault` | ● | — | — | |
 | `stop` | — | — | — | **不检查**。未连接或未使能时是空操作，返回 `None` |
-| `send_mit_frame` | — | — | — | **不抛异常**。前置条件不满足时直接返回 `False` |
+| `send_mit_frame` | — | — | — | 非有限字段或超量程 `tau` 会抛 `CommandError`；未连接或未使能时返回 `False` |
 | `poll` | — | — | — | **不抛异常**。未连接时返回 `False` |
 | `goto` / `goto_rad` / `move_to` / `move_at_speed` / `move_at_speed_rad` | ● | ● | **●** | 这五个都汇入同一条斜坡，斜坡拒绝未标定的配置 |
 | `home` | ● | ● | **●** | 经 `move_to()` 朝标定出的闭合端走 |
@@ -783,7 +786,7 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 
 **图例**：● = 必须满足；— = 不需要。
 
-> **不要**把这张表读成"凡是标 — 的都安全"。`—` 的意思是"没检查"，不是"没影响"，其中有一项风险实打实：**`send_mit_frame()` 发的是裸帧**——不查标定、不按标定限位做钳制、不查方向——所以它能把手爪驱过其他所有运动路径都拒绝越过的止点。
+> **不要**把这张表读成"凡是标 — 的都安全"。`—` 的意思是"没检查"，不是"没影响"，其中有一项风险实打实：**`send_mit_frame()` 发的是裸位置帧**——它执行帧量程检查，但不查标定、不按标定限位做钳制、不查方向——所以它能把手爪驱过其他所有运动路径都拒绝越过的止点。
 
 ## 异常与错误处理
 
@@ -822,7 +825,7 @@ except LiteGripError as e:
     print(f"SDK error: {e}")
 ```
 
-> **注意**：**钳位与跳过的力参数不会抛任何异常。** 超出行程的目标被静默钳位，越界的 `kp` / `kd` / `tau` 被静默饱和，未校验的 `force_n` 照常下发。**只捕异常的程序，这三样一个都发现不了。**
+> **注意**：**钳位与饱和不抛异常；非法的帧数值会抛。** 超出行程的目标被静默钳位，越界的 `kp` / `kd` / `dq` 被静默饱和，`force_n` 的数值范围不校验。非有限值、或超出电机型号量程的 `tau` 会抛 `CommandError`。**只捕异常的程序发现不了钳位与饱和；不捕异常的程序会在拒绝处停下。**
 >
 > **注意**：**`CommandError` 是标定检查，不是通用的"命令出错"。** 配置未标定或行程为零、命令帧发不出去时由动作层抛出；`load_calibration()` 遇到非法模板名，或同时给了 `path` 与 `template` 时也抛它。**电机自己拒绝命令并不走这个异常**——那会体现在状态帧的错误码里（见[反馈帧与错误码](#反馈帧与错误码)）。
 
@@ -877,9 +880,9 @@ gripper.motion_config = MotionConfig(speed_mm_s=80.0)
 
 **`hold_kp` / `hold_kd` 已废弃。** 保力帧是纯力矩源（`kp = kd = 0`），位置和速度增益会让力跟着夹口走而不是跟着力走；这两个字段只为让老配置文件还能加载，设了不会生效。
 
-> **注意**：**力矩保护只看行进段，不看压紧段，这是刻意的。** 顶着限位本来就该有力矩，在那里加力矩门槛会让每一次 `open()` / `close()` 都误触发。加窗堵转判据单独对付不了"缓慢让位的硬挡"，`stop_torque_nm` 补的正是这一路：实测速度明显低于指令速度、且力矩连续 `stop_torque_cycles` 个采样过阈，于是失力 `stop_release_s` 并报堵转。**不要靠调高 `stop_torque_nm` 来消掉它**——它响是因为有东西挡住了行程。
+> **注意**：**力矩保护只看行进段，不看压紧段，这是刻意的。** 顶着限位本来就该有力矩，在那里加力矩门槛会让每一次 `close()`（以及未配置 `work_stroke_mm` 时的 `open()`）都误触发。加窗堵转判据单独对付不了"缓慢让位的硬挡"，`stop_torque_nm` 补的正是这一路：实测速度明显低于指令速度、且力矩连续 `stop_torque_cycles` 个采样过阈，于是失力 `stop_release_s` 并报堵转。**不要靠调高 `stop_torque_nm` 来消掉它**——它响是因为有东西挡住了行程。
 
-**标定探测字段**（`calib_*`）调的是 `zero()` 与 `calibrate()`：`calib_kp` / `calib_kd`（20.0 / 2.0）定探测刚度，`calib_step_rad`（0.05）限住命令领先量，`calib_tau_limit`（2.0 N·m）中止探测，`calib_stall_delta` / `calib_stall_cycles` / `calib_max_iter`（0.0015 / 5 / 200）决定何时判定找到了限位。
+**标定探测字段**（`calib_*`）由 `zero()` 读取，再传给 `calibrate()`：`calib_kp` / `calib_kd`（20.0 / 2.0）定探测刚度，`calib_step_rad`（0.05）限住命令领先量，`calib_tau_limit`（2.0 N·m）中止探测，`calib_stall_delta` / `calib_stall_cycles` / `calib_max_iter`（0.0015 / 5 / 200）决定何时判定找到了限位。直接调用 `calibrate()` 时用它的入参，忽略这些字段。
 
 `sleep_fn` 与 `monotonic_fn` 是给测试和仿真用的时间缝；除非你在写测试，否则别碰。
 
@@ -1199,10 +1202,13 @@ g++ -std=c++17 $(pkg-config --cflags litegrip_cpp) main.cpp \
 
 > **不要**把 `PKG_CONFIG_PATH` 指向 `build/`。那里的 `litegrip_cpp.pc` 是未安装的副本，里面的路径是相对于它最终所在位置写的，报出来的路径并不存在。请用装好的那一份。
 
-**接口面与 Python 一致，只是换成 C++ 的命名。** `grasp()` 与 `move_at_speed*()` 都在，还有 `goto_mm()` / `goto_rad()` / `move_to()`、四个标定入口、带 `is_stale()` 与 `data_age_s` 的 `get_state()`，以及 `send_mit_frame()`。移植时有两处差异要紧：
+> **注意**：**让程序找到标定数据。** SDK 先找运行程序旁边的文件，所以在安装前缀之外构建的可执行文件——你自己项目里的 `build/my_app`，这是常见情形——需要 `LITEGRIP_DATA_DIR="$HOME/.local/share/litegrip_cpp"`。没有它，搜索什么也找不到，`load_calibration()` 会打印试过的路径并返回 `false`。这个覆盖也优先于随包文件。查找顺序是 `$LITEGRIP_DATA_DIR/calibration/`，然后是程序目录下的 `<program dir>/../share/litegrip_cpp/calibration/`（以及两个同级位置），最后是工作目录；`LITEGRIP_FACTORY_CALIB` 优先于所有这些。
 
-- **`set_force()` 两个 SDK 都没有。** 它在 v1.0.0 之前就从两边的公开 API 移除了；要出力请用 `grasp()`。
-- **`close()` 收的是速度和可选的进度回调，不是力。** 旧的 `close(kp, kd, force_n, duration)` 签名已经没了；`close(speed_mm_s, *, progress=None)` 就是全部参数，依赖那个力参数的移植要改用 `grasp()`。
+**接口面与 Python 有重叠，只是换成 C++ 的命名。** `grasp()` 与 `move_at_speed*()` 都在，还有 `goto_mm()` / `goto_rad()` / `move_to()`、四个标定入口、带 `is_stale()` 与 `data_age_s` 的 `get_state()`，以及 `send_mit_frame()`。移植时下面这些差异要紧：
+
+- **轨迹录制/回放、遥操作与 `write_zero()` 只有 Python 有。** C++ SDK 不提供这些（`gripper.hpp` 写明轨迹与遥操作属于后续阶段）。用到它们的移植必须去掉这部分，或改调 Python SDK。
+- **`set_force()` 两个 SDK 都没有。** Python 在 v1.0.0 之前移除，C++ 在 v1.0.0 中移除；要出力请用 `grasp()`。
+- **`close()` 收的是速度和可选的进度回调，不是力。** 旧的 `close(kp, kd, force_n, duration)` 签名已经没了；C++ 的全部参数是 `MoveResult close(std::optional<double> speed_mm_s = std::nullopt, MoveProgressCallback progress = {})`，依赖那个力参数的移植要改用 `grasp()`。
 
 C++ SDK 还多一个 Python 没有的上限：`safety.hpp` 里的 `kMaxCommandVelocityCeilingRadS`（1.5 rad/s）。`ControlLoop::max_velocity_rad_s` 默认就是它，且只允许调低，不允许调高。
 
@@ -1224,12 +1230,12 @@ C++ SDK 还多一个 Python 没有的上限：`safety.hpp` 里的 `kMaxCommandVe
 | 参数 | 默认值 | 决定什么 |
 |------|------|------|
 | `channel` / `can_id` / `mst_id` / `canfd_mode` | `can0` / `0x08` / `24`（0x18） / `false` | 插件独占的总线 |
-| `dry_run` / `hardware_enable` | — | 两个开关都打开，才允许发出运动帧 |
+| `dry_run` / `hardware_enable` | `true` / `false` | 只有 `dry_run=false` **且** `hardware_enable=true` 才会发出运动帧。因此随默认值不会发出任何帧 |
 | `max_velocity_rad_s` | `1.5` | 命令速度上限。只能调低，不能调高 |
 | `max_feedback_velocity_rad_s` | `-1.0` | 最坏情况反馈速度界。**`-1.0` 表示"未给出"，插件会拒绝发出任何运动帧** |
 | `torque_limit_nm` | `3.5` | 控制力矩总预算，每帧在 `kp` 与 `kd` 之间分配；3.5 N·m 是 DM-J4310-2EC 的额定值 |
 | `safety_baseline` | `3.5` | 带版本的安全基线。版本未知或文件缺失会让组件**拒绝启动** |
-| `max_position_error_rad` | `-1.0` | 最坏位置误差；`-1` 表示由行程限位推导 |
+| `max_position_error_rad` | `-1.0` | 最坏位置误差；`-1` 表示由红线安全带的宽度推导，而不是由配置的行程推导 |
 | `kp` / `kd` | `20.0` / `0.5` | 增益上界，每帧从预算里重新分配 |
 | `control_rate_hz` / `feedback_timeout_s` / `command_timeout_s` | — | 环频与看门狗计时 |
 | `temperature_limit_c` | — | 线圈与 MOS 温度切断点 |
@@ -1347,7 +1353,7 @@ ros2 launch litegrip_description display.launch.py
 
 问：为什么 `goto(60.0)` 到不了 60 mm？答：三种可能：（1）路上堵转了，此时 `MoveResult.ok` 为 `False`，它返回的 `state` 会告诉你实际停在哪里；（2）目标在标定端点之外，被钳到端点；（3）`duration` 太短，帧序列结束时机构还在路上。
 
-问：为什么 `close()` 不按我设的力停住？答：`close()` 根本没有力参数，也从来没有过能生效的力参数。只有 `grasp()` 收 `force_n`，在那里它被换算成 `force_n × 0.1 N·m` 的前馈力矩，且不带位置和速度增益；**不做任何校验，也不保证夹持力等于设定值**，因为真实夹持力取决于对象刚度与夹口最终落在哪里。在某个位置上施加力正是 `set_force()` 当年做的事——它已被移除，替代品是 `grasp()`。
+问：为什么 `close()` 不按我设的力停住？答：`close()` 根本没有力参数，也从来没有过能生效的力参数。只有 `grasp()` 收 `force_n`，在那里它被换算成 `force_n × 0.1 N·m` 的前馈力矩，且不带位置和速度增益；**它的数值范围不做校验（非有限值会抛 `CommandError`），也不保证夹持力等于设定值**，因为真实夹持力取决于对象刚度与夹口最终落在哪里。在某个位置上施加力正是 `set_force()` 当年做的事——它已被移除，替代品是 `grasp()`。
 
 问：`grasp()` 返回 `result.stalled == True`，是夹到东西了吗？答：**不一定。** 堵转判据是位置式的 —— 加窗位置变化连续 `stall_cycles` 个周期低于 `stall_delta`。夹住物体和走到行程端点对它来说完全一样，所以**光看 `stalled` 分不出来**。请读 `get_position()`：空夹停在闭合端点，夹到物体则停在端点之前。
 
@@ -1365,7 +1371,7 @@ ros2 launch litegrip_description display.launch.py
 
 问：标出来的 `rad_to_mm` 不对？答：查 `max_stroke_mm`。它的默认值是 `85.0`，也就是出厂机型的手指行程；每个标定入口都用 `max_stroke_mm + STOP_INSET_MM` 作刻度分子（`rad_to_mm = （max_stroke_mm + 1.0）÷ 实测 rad 跨度`）。重新标定之前，请把它改成**你自己那台**的手指行程——用卡尺从闭合止点量起；这是标定文件唯一不携带的逐台测量值。有一个错值要避开：早已作废的 `120.0` 占位值不属于这个系列的任何一个机型。
 
-问：标定文件写在哪儿？答：不带参数的 `save_calibration()` 写 `~/.litegrip/<channel>_calibration.json`，并**返回它写入的路径** —— 一个通道一个文件，所以同一台机器上的两台夹爪不会互相覆盖。**这个文件和旧的 `~/.litegrip/litegrip_calibration.json` 都不会被自动读回**：要用 `path=` 点名，或把 `LITEGRIP_CALIB` 指向它。已经没有任何东西会写旧名字了。
+问：标定文件写在哪儿？答：不带参数的 `save_calibration()` 在设置了 `LITEGRIP_CALIB` 时写到该变量指定的文件，否则写 `~/.litegrip/<channel>_calibration.json`，并**返回它写入的路径** —— 一个通道一个文件，所以同一台机器上的两台夹爪不会互相覆盖。**这个文件和旧的 `~/.litegrip/litegrip_calibration.json` 都不会被自动读回**：要用 `path=` 点名，或把 `LITEGRIP_CALIB` 指向它。已经没有任何东西会写旧名字了。
 
 问：为什么 `home()` 不回闭合端？答：它应该回。`home()` 发的是 `self._config.pos_closed_rad` —— **本实例标定出的闭合限位**，不是模块常量 —— 所以常规安装回闭合端，反装也回正确的那一端。如果它去了错的那端，说明标定没加载，`pos_closed_rad` 还是占位值。（本手册早前的版本声称 `home()` 用的是常量 `0.0 rad`、会撞向张开侧。那是错的；请改查 `config.calibrated`。）
 
@@ -1373,7 +1379,7 @@ ros2 launch litegrip_description display.launch.py
 
 问：`tau` 读数总比我设的略小？答：正常。MIT 帧用的是**截断式**编码（向下取整），所以量化误差是单边的：`解码值 − 命令值` 落在区间 `(−1 LSB, 0]`，**永远不会大于**你设的值。
 
-问：把 `kp` / `kd` 设成 1000 会报错吗？答：不会。编码时它们会被**静默饱和**到 `[0, 500]` / `[0, 5]`，`tau` 饱和到 `[−10, 10] N·m`；调用方收不到任何提示。
+问：把 `kp` / `kd` 设成 1000 会报错吗？答：`kp` / `kd` 不会：编码时它们被**静默饱和**到 `[0, 500]` / `[0, 5]`，调用方收不到任何提示。`tau` 超出电机型号的帧量程（DM4310 为 `±10 N·m`）会抛 `CommandError`，任何非有限字段也一样。
 
 问：读 `OC_Value` 得到 0.8，是 0.8 A 吗？答：**不是。** 它是**比例值**，表示 80%。
 
@@ -1755,7 +1761,7 @@ SDK 共有 **17 个**异常类，全部继承自 `LiteGripError`：其中 **7 �
 | `TrajectoryRecordingError` | `TrajectoryError` | 采样线程已死，或定时录制没有采满 —— 残缺的录制绝不会当成完整的返回 |
 | `TrajectoryFormatError` | `TrajectoryError` | 字节流不是合法的轨迹文件（魔数、版本、长度或采样值不合法） |
 
-> **注意**：那四个遥操作异常在 `litegrip.teleop` 里，那六个轨迹异常在 `litegrip.trajectory` 里；这十个都从 `litegrip` 转出，所以 `from litegrip import TrajectoryFormatError` 可用。越界目标被钳制、力参数不校验，这两件事都不会抛异常（详见 [运动控制（开合与位置）](#运动控制开合与位置) 与 [抓取与力控](#抓取与力控)）。
+> **注意**：那四个遥操作异常在 `litegrip.teleop` 里，那六个轨迹异常在 `litegrip.trajectory` 里；这十个都从 `litegrip` 转出，所以 `from litegrip import TrajectoryFormatError` 可用。越界目标被钳制、`kp` / `kd` / `dq` 被饱和、`force_n` 的数值范围不校验，这些都不会抛异常；非有限值和超量程 `tau` 会（详见 [运动控制（开合与位置）](#运动控制开合与位置) 与 [抓取与力控](#抓取与力控)）。
 
 ## 错误处理建议
 

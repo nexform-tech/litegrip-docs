@@ -95,11 +95,11 @@ This document is for **integrators** and explains SDK installation, interface us
 
 > **Unless this document states otherwise, "mm" always means the "actual aperture"** (that is, the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **`get_position()` and `position_mm` return the actual aperture.** The SDK's millimeter zero point sits at the fully closed end, where the two fingertips touch, and the reading counts up from there; the fully open aperture is **85.000**. It is what a caliper measures between the two fingertips — **not a motor angle and not a per-finger displacement**. A move that ends by pressing onto the open mechanical stop reads about **1 mm more** (`STOP_INSET_MM = 1.0`), because that is where the calibration probe found the endpoint.
+> **`get_position()` and `position_mm` return the actual aperture.** The SDK's millimeter zero point sits at the fully closed end, where the two fingertips touch, and the reading counts up from there; the fully open aperture is **85.000**. It is what a caliper measures between the two fingertips — **not a motor angle and not a per-finger displacement**. A move that ends by pressing onto the open mechanical stop (that is, `open()` with no `work_stroke_mm` configured) reads about **1 mm more** (`STOP_INSET_MM = 1.0`), because that is where the calibration probe found the endpoint.
 >
 > **Motor angle and calibrated values differ from unit to unit.** The rad endpoints come from the calibration file for this unit (`~/.litegrip/litegrip_calibration.json`), and **the values are different for every unit**, so this document gives no specific numbers; rely on the calibration file of your own unit.
 >
-> **The conversion factor only affects "the millimeter numbers displayed and millimeter targets".** The SDK position clamping uses the two **rad** values `pos_closed_rad` / `pos_open_rad` and is independent of the millimeter conversion factor — a wrong factor only makes the numbers wrong; it does not change the endpoint positions. **But this also means the SDK makes no out-of-range check for you**: if you need it to "refuse out-of-range targets", implement that yourself (see [Motion control](#motion-control-openclose-and-position)).
+> **The conversion factor only affects "the millimeter numbers displayed and millimeter targets".** The SDK position clamping uses the two **rad** values `pos_closed_rad` / `pos_open_rad` and is independent of the millimeter conversion factor — a wrong factor only makes the numbers wrong; it does not change the endpoint positions. **But this also means the SDK does not reject an out-of-range position target for you** — it clamps it: if you need "refuse out-of-range targets" semantics, implement that yourself (see [Motion control](#motion-control-openclose-and-position)).
 
 > **The effective stroke is `85.000 mm`, and the SDK agrees.** Its geometry constant `JAW_TRAVEL_MM` is `85.0`, and the per-finger travel is `42.5 mm`. Every millimeter figure in this manual and in the Product Manual is that same stroke; there is no second convention to reconcile.
 
@@ -124,16 +124,16 @@ Safety notices in the other sections of this document name their severity with t
 
 | Layer | Implemented by | What it protects |
 |------|---------|---------|
-| Out-of-range checking | **Implemented by the integrator** | Commands stay in range (the SDK itself makes no out-of-range check) |
+| Out-of-range checking | Integrator, plus the SDK's per-frame checks | Commands stay in range; non-finite values and an over-range feed-forward torque are refused, but position targets and gains are only clamped |
 | Driver-level protection | Motor driver firmware | Overvoltage / undervoltage / overcurrent / overtemperature / disconnection |
 | Physical hard stops and hardware emergency stop | **Must be configured by the integrator** | The mechanism stays in range; a real power cut stops the machine |
 
-1. **The SDK makes no out-of-range check.** A position target beyond the calibrated stroke is **silently clamped** to the endpoint (see [Motion control](#motion-control-openclose-and-position)), with neither an error nor a notice; out-of-range `kp` / `kd` / `tau` are **silently saturated**. "Commands stay in range" must be implemented by the integrator.
+1. **The SDK checks each frame, but it is not a safety limit.** A position target beyond the calibrated stroke is **silently clamped** to the endpoint (see [Motion control](#motion-control-openclose-and-position)), and `kp` / `kd` / `dq` are **silently saturated** to the encoding range, with neither an error nor a notice. Non-finite values raise `CommandError`, as does a feed-forward `tau` beyond the motor model's frame range (`±10 N·m` for the DM4310). "Commands stay in range" must still be implemented by the integrator.
 2. **You must configure a hardware emergency stop circuit, and its action must not depend on CAN communication or host software.** When a process hangs, CAN drops, or Python raises an exception, the software side cannot stop the machine.
 3. **You must configure mechanical hard stops** as the last line of defence. A calibrated endpoint is not a mechanical hard stop.
 4. **Do not use a software stop as a safety function.** `stop()` only sends a zero-torque frame, the motor stays enabled and can be back-driven, and it does not return success or failure; the `disable()` return value only means the command was sent, not confirmed (see [Enabling, disabling, and fault handling](#enabling-disabling-and-fault-handling)). Neither can replace a hardware emergency stop.
 5. **Do not treat a return value as evidence that the command took effect.** A motion interface return value only means the frame was sent; only a feedback frame can prove the actual state.
-6. **Do not use any force parameter before force calibration is complete.** The `force_n` conversion uses the nominal coefficient `0.1 N·m/N`, which the SDK neither validates nor limits (see [Grasping and force control](#grasping-and-force-control)).
+6. **Do not use any force parameter before force calibration is complete.** The `force_n` conversion uses the nominal coefficient `0.1 N·m/N`, which the SDK does not validate against a real load and does not limit numerically; only a non-finite value is rejected (see [Grasping and force control](#grasping-and-force-control)).
 7. Frames must be sent periodically during operation, otherwise the driver **automatically exits the enabled state** after 0.4 s (verify by reading back RID 9); **this timeout protection can be disabled, and once it is disabled the motor keeps the last torque command when the link drops** -- do not disable it without an assessment.
 8. Debugging and calibration **must be supervised by a person present**, and the hardware emergency stop must be available.
 9. If you find anything abnormal (unusual noise, jamming, abnormal temperature rise, jumping position readings), **stop the machine immediately and cut the 24 V**, then investigate.
@@ -166,7 +166,7 @@ From the software side, a risk assessment should consider the following failure 
 
 You must use the risk assessment to judge whether the hazards concerned constitute an unacceptable risk and take the corresponding measures. The gripper is not suitable for use by persons without professional guidance or without full civil capacity.
 
-> **Note**: **this SDK makes no safety decisions.** Out-of-range targets are **silently clamped** to the calibrated endpoint, force parameters get **no validation at all**, and out-of-range `kp` / `kd` / `tau` are **silently saturated** — none of these three cases **raises an error**. The preconditions of each interface are also only "connected" and "enabled"; see [Preconditions and calling constraints](#preconditions-and-calling-constraints). **Read that section first, then read the specific interfaces.**
+> **Note**: **this SDK makes no safety decisions.** Out-of-range targets are **silently clamped** to the calibrated endpoint, out-of-range `kp` / `kd` / `dq` are **silently saturated**, and the numeric range of `force_n` is unchecked. Non-finite values and a feed-forward `tau` beyond the motor model's frame range do raise `CommandError`; clamping and saturation do not. The preconditions of each interface are also only "connected" and "enabled"; see [Preconditions and calling constraints](#preconditions-and-calling-constraints). **Read that section first, then read the specific interfaces.**
 
 # SDK usage guide
 
@@ -183,7 +183,7 @@ The LiteGrip Python SDK is the `litegrip` package. It wraps the Damiao **DM-J431
 | **Motion requires a calibration first** | `connect()` **does not** load a calibration; until one is loaded, every motion method raises `CommandError` instead of moving on placeholder coefficients (see [Preconditions and calling constraints](#preconditions-and-calling-constraints)) |
 | **Driver protection is not reimplemented** | Overvoltage / undervoltage / overcurrent / overtemperature / disconnection protection is enforced by the DM-J4310-2EC driver firmware |
 
-> **Note**: **This SDK does not implement "safety limits".** Out-of-range targets are clamped; `kp` / `kd` / `tau` are silently saturated when they fall outside the encoding range; and the force setpoint is an approximate conversion, not a calibrated measurement. **Measures to keep the fingers from damaging the workpiece or crushing a person must be implemented by the integrator, in software or in hardware.**
+> **Note**: **This SDK does not implement "safety limits".** Out-of-range targets are clamped; `kp` / `kd` / `dq` are silently saturated when they fall outside the encoding range, and a `tau` outside the model's range is refused; and the force setpoint is an approximate conversion, not a calibrated measurement. **Measures to keep the fingers from damaging the workpiece or crushing a person must be implemented by the integrator, in software or in hardware.**
 
 **Supported environment:**
 
@@ -335,7 +335,7 @@ with LiteGrip(channel="can0", can_id=0x08) as gripper:
     gripper.load_calibration()   # the calibration shipped inside the SDK
     gripper.enable()             # retries until the status frame reports err == 1
 
-    gripper.open()                                     # 50 mm/s to the open-side stop
+    gripper.open()                                     # 50 mm/s; shipped calibration stops at 80 mm
     gripper.close()                                    # 50 mm/s to the closed-side stop
     result = gripper.grasp(force_n=20.0, hold_s=3.0)   # close until gripped, then hold 20 N
     print(result.reached, result.stalled, result.cycles)
@@ -354,7 +354,7 @@ python3 first_move.py
 | `with LiteGrip(...) as gripper:` | Opens the CAN bus and registers the motor. Leaving the block calls `disconnect()`, which disables the motor by default |
 | `gripper.load_calibration()` | Reads this unit's stroke endpoints and millimeter scale into `config` |
 | `gripper.enable()` | Clears a latched fault if one is present, enables, then **waits for the status frame to report `err == 1`**. Returns an `EnableResult` |
-| `gripper.open()` | Ramps toward the open side until the mechanical stop ends the move. Returns a `MoveResult` |
+| `gripper.open()` | Ramps toward the open side. With the shipped calibration (`work_stroke_mm = 80.0`) it stops at 80 mm; without a work stroke it drives onto the mechanical stop. Returns a `MoveResult` |
 | `gripper.close()` | The same on the closed side |
 | `gripper.grasp(force_n=20.0, hold_s=3.0)` | Closes onto the object — or onto the closed-side stop if there is nothing there — then holds `force_n` for 3 seconds. Returns a `GraspResult` |
 
@@ -364,9 +364,9 @@ python3 first_move.py
 False True 12
 ```
 
-`stalled=True` means the position stopped changing, which is what happens when the fingers meet an object. `reached` is `False` because the jaw did not reach the target angle. `cycles` is how many control cycles the closing phase took. **Read `result.ok`, not `reached`**: a grasp that is holding something reports `ok=True` with `stalled=True`.
+`stalled=True` means the position stopped changing, which is what happens when the fingers meet an object. `reached` is `False` because the jaw did not reach the target angle. `cycles` is how many **hold slices** the hold phase ran (`hold_s / hold_interval`, so about 15 for the example). **Read `result.ok`, not `reached`**: a grasp that is holding something reports `ok=True` with `stalled=True`.
 
-> **Do not** expect `reached=True` from a grasp that is holding something. In a grasp, `stalled=True` and `reached=False` is the success case. For `open()` and `close()` it is the other way round: those succeed by pressing onto the mechanical stop, so `ok=True` comes with `stalled=True`.
+> **Do not** expect `reached=True` from a grasp that is holding something. In a grasp, `stalled=True` and `reached=False` is the success case. `close()` is the same: it succeeds by pressing onto the closed-side stop, so `ok=True` comes with `stalled=True`. `open()` presses only when no `work_stroke_mm` is configured; with the shipped calibration (`80.0 mm`) it is an ordinary positioning move, and `ok=True` comes with `reached=True`.
 
 > **Note**: The interface names, signatures and defaults in these three examples are checked against the SDK; the printed values are illustrative, so your `cycles` count and exact positions will differ.
 
@@ -432,8 +432,8 @@ The high-level actions run a closed-loop engine that ramps with a bounded lead, 
 
 | Method | Target | Description |
 |------------------------|--------------------------------------------|--------------------------------|
-| `open()` | Past the calibrated open endpoint | Ramps onto the open-side mechanical stop and lets the stop end the move. With `GripperConfig.work_stroke_mm` set it stops at that opening instead — the shipped calibration sets `80.0`; returns `MoveResult` |
-| `close()` | Past the calibrated closed endpoint | The same on the closed side; `work_stroke_mm` does not change where a close ends. Use `grasp()` for a power grasp |
+| `open()` | `work_stroke_mm`, or the open endpoint | With `0 < work_stroke_mm < travel` it stops at that opening — the shipped calibration sets `80.0`, so `open()` never touches the stop. Otherwise it ramps onto the open-side mechanical stop and lets the stop end the move; returns `MoveResult` |
+| `close()` | The calibrated closed endpoint | Ramps onto the closed-side stop and lets the stall end the move. The emitted frames stay inside the calibrated travel; `work_stroke_mm` does not change where a close ends. Use `grasp()` for a power grasp |
 | `grasp()` | Closes until stall, then holds force | Returns `GraspResult`; see [Grasping and force control](#grasping-and-force-control) |
 | `zero()` | Both endpoints in turn | Full calibration; returns `CalibrationData` |
 | `home()` | `config.pos_closed_rad` | Ramps to the calibrated closed position — a stop *on* the zero, not a press onto it; returns `MoveResult` |
@@ -442,7 +442,7 @@ The high-level actions run a closed-loop engine that ramps with a bounded lead, 
 | `move_to()` | Absolute position (rad) | It is `goto_rad()`, just with a longer default duration |
 | `move_at_speed()` | Constant linear velocity motion | The endpoint is clamped the same way |
 | `move_at_speed_rad()` | Constant angular velocity motion | The endpoint is clamped the same way |
-| `send_mit_frame()` | Send one MIT frame directly | Expert interface, **no clamping, no saturation check** |
+| `send_mit_frame()` | Send one MIT frame directly | Expert interface: **no clamp to the calibrated travel**. Frame-range checks do run: non-finite values and a `tau` beyond the model's range raise `CommandError` |
 
 **Common parameters** (when `kp` / `kd` are omitted, the values from `config` are used):
 
@@ -481,19 +481,20 @@ Typical usage:
 with LiteGrip(channel="can0", mst_id=0x18) as gripper:
     gripper.load_calibration()      # load the calibration first
     gripper.enable()
-    gripper.open()                  # open onto the calibrated open stop
+    gripper.open()                  # shipped calibration: stop at 80 mm
     gripper.goto(60.0)              # move to 60 mm
     gripper.close()                 # close onto the calibrated closed stop
 ```
 
 > **Note**: **A target beyond the calibrated endpoint is silently clamped.** Inside `goto_rad()` it is
-> `position_rad = max(pos_open_rad, min(pos_closed_rad, position_rad))`,
-> and `move_at_speed_rad()` likewise clamps the endpoint to `[pos_open_rad, pos_closed_rad]`.
+> `position_rad = min(hi, max(lo, position_rad))`, where `lo = min(pos_closed_rad, pos_open_rad)`
+> and `hi = max(pos_closed_rad, pos_open_rad)` — the form that also works for a reverse mount.
+> `move_at_speed_rad()` clamps the endpoint the same way.
 > **It raises no exception and does not tell you it clamped.** If you need "reject anything out of range" semantics, check before the call yourself.
 
-> **Note**: **`open()` and `close()` deliberately drive past the calibrated limit.** The mechanical stop ends the move, which is why a successful `open()` reports `stalled=True`: the jaw is resting against the stop with a small pressing torque. That is intended for a full open or close, but it means the position after the call is not the calibrated endpoint — read `result.state.position_mm` if you need the actual resting position. To stop short of the stop, use `goto()`.
+> **Note**: **`close()` presses onto the closed-side stop; `open()` does so only without a work stroke.** The emitted frames are clamped to the calibrated travel, so the command never goes past the calibrated endpoint even when the target is placed there. `close()` reports success on a stall at the closed limit, which is why `ok=True` comes with `stalled=True`. With the shipped `work_stroke_mm = 80.0`, `open()` is an ordinary positioning move that stops at 80 mm with `ok = reached and not stalled` — it never touches the stop. Read `result.state.position_mm` if you need the actual resting position. To stop short of the stop, use `goto()`.
 
-> **Note**: **`send_mit_frame()` has no clamping and no range check at all.** It only checks "connected and enabled"; an out-of-range `q` is sent as is; `kp` / `kd` / `tau` outside the encoding range are silently saturated at the encoding stage to `[0, 500]` / `[0, 5]` / `[−10, 10]`. Unless you need to control single-frame timing yourself, use the high-level interfaces.
+> **Note**: **`send_mit_frame()` has no clamp to the calibrated travel.** It checks connected and enabled, then rejects non-finite `q` / `kp` / `kd` / `dq` / `tau` and a `tau` outside the motor model's frame range (`±10 N·m` for the DM4310) with `CommandError`. A finite `q` beyond the calibrated stroke is sent as is; `kp` / `kd` / `dq` / `tau` are clamped at the encoding stage to `[0, 500]` / `[0, 5]` / `±30 rad/s` / `±10 N·m`. Unless you need to control single-frame timing yourself, use the high-level interfaces.
 
 > **Note**: **Velocity is "duration distribution", not "velocity limiting".** `duration` only decides how long this run of frames lasts — frames are sent at 200 Hz (5 ms period) and the position target transitions smoothly over the whole duration. To actually cap the maximum velocity, use `move_at_speed()` / `move_at_speed_rad()`, which compute the target sequence from the given velocity.
 
@@ -518,7 +519,7 @@ grasp(force_n=None, hold_s=0.0, *, progress=None) -> GraspResult
 | `stalled` | The position stopped changing — **the normal outcome when an object is gripped** |
 | `state` | The `GripperState` at the end of the hold |
 | `target_rad` / `force_n` | The target angle and the force that was held |
-| `cycles` | Control cycles the closing phase took. `0` means the hold was never entered |
+| `cycles` | Number of hold slices the hold phase ran (`hold_s / hold_interval`). `0` means the hold was never entered |
 | `travel_guard` | The runaway watch tripped and released the torque; see below |
 
 > **Note**: **A successful grasp reports `stalled=True` and `reached=False`.** Because the stall test is positional, gripping an object and hitting the stroke endpoint look the same to it — **you cannot use those two flags alone to tell "gripped an object" from "closed on nothing".** Combine them with `get_position()`: a grasp on nothing ends at the closed endpoint, an object ends short of it.
@@ -529,12 +530,14 @@ grasp(force_n=None, hold_s=0.0, *, progress=None) -> GraspResult
 
 > **Do not** simply call `grasp()` again after a `travel_guard` trip: the closing leg re-approaches the same stop and the hold presses it again.
 
-> **Note**: **The force argument is not calibrated and not validated.** `force_n` is converted with the nominal `UnitConversion.N_TO_NM = 0.1 N·m/N`; a negative value is sent as a negative torque. `force_n=20.0` corresponds to a `2.0 N·m` feedforward, one fifth of the torque encoding limit `10 N·m`.
+> **Note**: **The force argument is not calibrated, and its numeric range is not validated.** `force_n` is converted with the nominal `UnitConversion.N_TO_NM = 0.1 N·m/N`; a negative value is sent as a negative torque, and only a non-finite value raises `CommandError`. `force_n=20.0` corresponds to a `2.0 N·m` feedforward, one fifth of the torque encoding limit `10 N·m`.
 >
 > ```python
-> gripper.grasp(force_n=0)      # position-only grasp: no feedforward torque
-> gripper.grasp()               # MotionConfig.force_n (20 N) → 2.0 N·m feedforward
+> gripper.grasp(force_n=0, hold_s=3.0)  # zero feed-forward torque; the hold frames hold nothing
+> gripper.grasp()                       # MotionConfig.force_n (20 N) → 2.0 N·m feedforward
 > ```
+>
+> **`force_n=0` is not a position hold.** The hold frames run with `kp = kd = 0` and zero torque, so the jaws are limp; nothing holds the position. With the default `hold_s=0.0` the hold has no deadline and the call does not return on its own — use `close()` for a position grasp that stops on contact.
 
 > **Note**: **The physical meaning of `force_n` is not calibrated.** `0.1 N·m/N` is a nominal conversion coefficient; **do not use it for safety decisions or load design until force calibration is complete**.
 
@@ -584,7 +587,7 @@ state = gripper.get_state(wait=True)
 | `get_torque()` | Torque (N·m) |
 | `get_error()` | Error code |
 | `get_temperature()` | `(MOS temperature, coil temperature)` |
-| `get_info()` | `GripperInfo` — model, motor model, CAN IDs, firmware version, serial number |
+| `get_info()` | `GripperInfo` — model, motor model, CAN IDs. `firmware_version` and `serial_number` exist on the dataclass but are returned empty; read `sw_ver` and `SN` with `read_param()` if you need them |
 | `refresh_status()` | Asks the motor for a status frame (0xCC) **without moving the jaws**. Use it before `get_state()` on a gripper that has been idle |
 
 **State test methods:**
@@ -649,7 +652,7 @@ gripper.exit_zero_gravity()        # hold the current position
 
 **`exit_zero_gravity()`** — leaves zero gravity mode and holds using the current position as the target, closed-loop with `config.kp` / `config.kd`.
 
-> **Note**: **The position is not validated on exit.** If pushing by hand moved the finger outside the stroke, `exit_zero_gravity()` uses that measured position directly as the target (the `send_mit_frame` path does not go through clamping); only a later call to an ordinary motion interface clamps the target to the calibrated endpoint.
+> **Note**: **The position is not validated on exit.** If pushing by hand moved the finger outside the stroke, `exit_zero_gravity()` uses that measured position directly as the target (the `send_mit_frame` path does not go through travel clamping; its frame-range checks still apply); only a later call to an ordinary motion interface clamps the target to the calibrated endpoint.
 
 > **Manual guidance has only the two zero gravity primitives above.** For a "grasp → release" cycle, combine `enter_zero_gravity()` / `exit_zero_gravity()` / `grasp()` yourself.
 
@@ -693,7 +696,7 @@ Both probing methods bound the command lead to `step_rad` and abort when the tor
 
 | Method | Signature and description |
 |------|-----------|
-| `save_calibration(path=None) -> str` | With `path=None` it writes `~/.litegrip/<channel>_calibration.json` and **returns the absolute path written**. One file per channel is what keeps two grippers on one machine from overwriting each other |
+| `save_calibration(path=None) -> str` | With `path=None` it writes `LITEGRIP_CALIB` when that variable is set, otherwise `~/.litegrip/<channel>_calibration.json`, and **returns the absolute path written**. One file per channel is what keeps two grippers on one machine from overwriting each other |
 | `load_calibration(path=None, template=None) -> bool` | Loads calibration into `config`. Call it after `connect()` and before `enable()` |
 | `load_template(name) -> bool` | Loads a `"normal"` or `"reverse"` mount template, declaring the mount. `name` must be one of `list_templates()` |
 
@@ -764,7 +767,7 @@ to find it, so the two recorded extremes span about a millimetre more than the j
 | `connect` / `disconnect` | — | — | — | `disconnect()` first tries `disable()` unless `disable_on_disconnect` is `False` |
 | `enable` / `disable` / `clear_fault` | ● | — | — | |
 | `stop` | — | — | — | **Not checked**. When not connected or not enabled it is a no-op and returns `None` |
-| `send_mit_frame` | — | — | — | **Does not raise**. When a precondition is not satisfied it returns `False` directly |
+| `send_mit_frame` | — | — | — | Raises `CommandError` for a non-finite field or an over-range `tau`; returns `False` when not connected or not enabled |
 | `poll` | — | — | — | **Does not raise**. Returns `False` when not connected |
 | `goto` / `goto_rad` / `move_to` / `move_at_speed` / `move_at_speed_rad` | ● | ● | **●** | All five funnel into the same ramp, which refuses an uncalibrated config |
 | `home` | ● | ● | **●** | Ramps to the calibrated closed limit through `move_to()` |
@@ -783,7 +786,7 @@ to find it, so the two recorded extremes span about a millimetre more than the j
 
 **Legend**: ● = required; — = not needed.
 
-> **Do not** read this table as "everything marked — is safe". `—` means "unchecked", not "unaffected", and one entry carries real risk: **`send_mit_frame()` is a raw frame** — no calibration check, no clamp to the calibrated limits, no direction check — so it can drive the jaws past a stop that every other motion path refuses to cross.
+> **Do not** read this table as "everything marked — is safe". `—` means "unchecked", not "unaffected", and one entry carries real risk: **`send_mit_frame()` is a raw position frame** — it runs the frame-range checks, but no calibration check, no clamp to the calibrated limits and no direction check — so it can drive the jaws past a stop that every other motion path refuses to cross.
 
 ## Exceptions and error handling
 
@@ -822,7 +825,7 @@ except LiteGripError as e:
     print(f"SDK error: {e}")
 ```
 
-> **Note**: **Clamping and force skipping raise nothing.** A target outside the stroke is silently clamped, an out-of-range `kp` / `kd` / `tau` is silently saturated, and an unvalidated `force_n` is sent as usual. **A program that only catches exceptions will not notice any of them.**
+> **Note**: **Clamping and saturation raise nothing; invalid frame values do.** A target outside the stroke is silently clamped, an out-of-range `kp` / `kd` / `dq` is silently saturated, and the numeric range of `force_n` is unchecked. A non-finite value, or a `tau` beyond the motor model's range, raises `CommandError`. **A program that only catches exceptions will miss clamping and saturation; one that does not catch will stop on the refusals.**
 >
 > **Note**: **`CommandError` is the calibration guard, not a general command error.** It is raised by the actions layer when the configuration is uncalibrated or has zero travel, when a command frame cannot be sent, and by `load_calibration()` for a bad template or for both `path` and `template`. **A refusal by the motor itself is not routed to it** — that shows up in the status frame's error code instead (see [Feedback frames and error codes](#feedback-frames-and-error-codes)).
 
@@ -877,9 +880,9 @@ gripper.motion_config = MotionConfig(speed_mm_s=80.0)
 
 **`hold_kp` / `hold_kd` are deprecated.** The hold is a pure torque source (`kp = kd = 0`), so position and velocity gains would follow the jaws instead of the force; the fields stay only so older configuration files still load, and setting them changes nothing.
 
-> **Note**: **The torque guard covers the travel segment, not the pressing segment, and that is deliberate.** Pressing against a limit is *supposed* to sit on torque, so a torque threshold there would fire on every `open()` / `close()`. The windowed stall test alone misses a hard stop that yields slowly, which is what `stop_torque_nm` catches: measured speed well below the commanded speed, with torque over the threshold for `stop_torque_cycles` samples, drops the torque for `stop_release_s` and reports a stall. **Do not raise `stop_torque_nm` to silence it** — it fires because something is blocking the travel.
+> **Note**: **The torque guard covers the travel segment, not the pressing segment, and that is deliberate.** Pressing against a limit is *supposed* to sit on torque, so a torque threshold there would fire on every `close()` (and on `open()` when no `work_stroke_mm` is configured). The windowed stall test alone misses a hard stop that yields slowly, which is what `stop_torque_nm` catches: measured speed well below the commanded speed, with torque over the threshold for `stop_torque_cycles` samples, drops the torque for `stop_release_s` and reports a stall. **Do not raise `stop_torque_nm` to silence it** — it fires because something is blocking the travel.
 
-**Calibration probe fields** (`calib_*`) tune `zero()` and `calibrate()`: `calib_kp` / `calib_kd` (20.0 / 2.0) set the probing stiffness, `calib_step_rad` (0.05) bounds the command lead, `calib_tau_limit` (2.0 N·m) aborts the probe, and `calib_stall_delta` / `calib_stall_cycles` / `calib_max_iter` (0.0015 / 5 / 200) decide when the limit has been found.
+**Calibration probe fields** (`calib_*`) are read by `zero()`, which passes them into `calibrate()`: `calib_kp` / `calib_kd` (20.0 / 2.0) set the probing stiffness, `calib_step_rad` (0.05) bounds the command lead, `calib_tau_limit` (2.0 N·m) aborts the probe, and `calib_stall_delta` / `calib_stall_cycles` / `calib_max_iter` (0.0015 / 5 / 200) decide when the limit has been found. Calling `calibrate()` directly uses its own parameters and ignores these fields.
 
 `sleep_fn` and `monotonic_fn` are timing seams for tests and simulation; leave them alone unless you are writing a test.
 
@@ -1199,10 +1202,13 @@ g++ -std=c++17 $(pkg-config --cflags litegrip_cpp) main.cpp \
 
 > **Do not** point `PKG_CONFIG_PATH` at `build/`. The `litegrip_cpp.pc` sitting there is the uninstalled copy, whose paths are relative to where the file ends up, so it reports paths that do not exist. Use the installed one.
 
-**The surface matches Python, under C++ names.** `grasp()` and `move_at_speed*()` exist, as do `goto_mm()` / `goto_rad()` / `move_to()`, the four calibration entry points, `get_state()` with `is_stale()` and `data_age_s`, and `send_mit_frame()`. Two differences matter when you port:
+> **Note**: **Point the program at the calibration data.** The SDK searches beside the running program first, so an executable built outside the install prefix — a `build/my_app` inside your own project, the usual case — needs `LITEGRIP_DATA_DIR="$HOME/.local/share/litegrip_cpp"`. Without it the search finds nothing and `load_calibration()` prints the paths it tried and returns `false`. The override also takes precedence over the packaged file. The search order is `$LITEGRIP_DATA_DIR/calibration/`, then `<program dir>/../share/litegrip_cpp/calibration/` (and two siblings), then the working directory; `LITEGRIP_FACTORY_CALIB` wins over all of them.
 
-- **`set_force()` exists in neither SDK.** It was removed from both public APIs before v1.0.0; use `grasp()`.
-- **`close()` takes a speed and an optional progress callback, not a force.** The old `close(kp, kd, force_n, duration)` signature is gone; `close(speed_mm_s, *, progress=None)` is the whole parameter list, and a port that relied on the force argument needs `grasp()` instead.
+**The surface overlaps Python, under C++ names.** `grasp()` and `move_at_speed*()` exist, as do `goto_mm()` / `goto_rad()` / `move_to()`, the four calibration entry points, `get_state()` with `is_stale()` and `data_age_s`, and `send_mit_frame()`. These differences matter when you port:
+
+- **Trajectory record and replay, teleoperation and `write_zero()` are Python-only.** The C++ SDK does not expose them (`gripper.hpp` states that trajectory and teleop are later stages). A port that uses them has to drop that part or call the Python SDK.
+- **`set_force()` exists in neither SDK.** Python removed it before v1.0.0, C++ removed it in v1.0.0; use `grasp()`.
+- **`close()` takes a speed and an optional progress callback, not a force.** The old `close(kp, kd, force_n, duration)` signature is gone; in C++ the whole parameter list is `MoveResult close(std::optional<double> speed_mm_s = std::nullopt, MoveProgressCallback progress = {})`, and a port that relied on the force argument needs `grasp()` instead.
 
 The C++ SDK also carries a ceiling the Python one does not: `kMaxCommandVelocityCeilingRadS` (1.5 rad/s) in `safety.hpp`. `ControlLoop::max_velocity_rad_s` defaults to it and may only be lowered, never raised.
 
@@ -1224,12 +1230,12 @@ The C++ SDK also carries a ceiling the Python one does not: `kMaxCommandVelocity
 | Parameter | Default | What it decides |
 |------|------|------|
 | `channel` / `can_id` / `mst_id` / `canfd_mode` | `can0` / `0x08` / `24` (0x18) / `false` | The bus the plugin owns |
-| `dry_run` / `hardware_enable` | — | Both switches must be on before a motion frame goes out |
+| `dry_run` / `hardware_enable` | `true` / `false` | A motion frame goes out only when `dry_run=false` **and** `hardware_enable=true`. The shipped defaults therefore send none |
 | `max_velocity_rad_s` | `1.5` | Command velocity ceiling. It can be lowered, never raised |
 | `max_feedback_velocity_rad_s` | `-1.0` | Worst-case feedback velocity bound. **`-1.0` means "not given", and the plugin then refuses to send any motion frame** |
 | `torque_limit_nm` | `3.5` | Total control torque budget, allocated between `kp` and `kd` every frame; 3.5 N·m is the DM-J4310-2EC rating |
 | `safety_baseline` | `3.5` | Versioned safety baseline. An unknown version or a missing file makes the component **refuse to start** |
-| `max_position_error_rad` | `-1.0` | Worst-case position error; `-1` derives it from the travel limits |
+| `max_position_error_rad` | `-1.0` | Worst-case position error; `-1` derives it from the width of the red-line safety band, not from the configured travel |
 | `kp` / `kd` | `20.0` / `0.5` | Gain upper bounds, re-allocated from the budget each frame |
 | `control_rate_hz` / `feedback_timeout_s` / `command_timeout_s` | — | Loop and watchdog timing |
 | `temperature_limit_c` | — | Coil and MOS temperature cutoff |
@@ -1347,7 +1353,7 @@ Q: I want the gripper to "raise an error when the target is out of range". How? 
 
 Q: Why does `goto(60.0)` not reach 60 mm? A: Three possibilities: (1) the jaws stalled on the way, in which case `MoveResult.ok` is `False` and the `state` it returns shows where they actually stopped; (2) the target lies beyond the calibrated endpoint, so it is clamped to the endpoint; (3) `duration` is too short, so the mechanism is still in transit when the frame sequence ends.
 
-Q: Why does `close()` not stop at the force I set? A: `close()` has no force argument at all, and never had one that worked. `force_n` is accepted only by `grasp()`, where it is converted into a feed-forward torque of `force_n × 0.1 N·m` with no position or velocity gain; **no validation is performed and no guarantee is made that the gripping force equals the set value**, because the realised force depends on the object's stiffness and on where the jaws land. Commanding a force at a position is what `set_force()` used to do — it is gone, and `grasp()` is the replacement.
+Q: Why does `close()` not stop at the force I set? A: `close()` has no force argument at all, and never had one that worked. `force_n` is accepted only by `grasp()`, where it is converted into a feed-forward torque of `force_n × 0.1 N·m` with no position or velocity gain; **its numeric range is not validated (a non-finite value raises `CommandError`), and no guarantee is made that the gripping force equals the set value**, because the realised force depends on the object's stiffness and on where the jaws land. Commanding a force at a position is what `set_force()` used to do — it is gone, and `grasp()` is the replacement.
 
 Q: `grasp()` returned `result.stalled == True`. Did it grip the object? A: **Not necessarily.** The stall test is positional — the windowed position change falling below `stall_delta` for `stall_cycles` consecutive cycles. Gripping an object and running into the stroke endpoint look identical to it, so **`stalled` alone cannot tell them apart**. Read `get_position()`: a grasp on nothing ends at the closed endpoint, a grasp on an object ends short of it.
 
@@ -1365,7 +1371,7 @@ Q: During calibration, why does it keep pushing after it hits the hard stop? A: 
 
 Q: The calibrated `rad_to_mm` came out wrong? A: Check `max_stroke_mm`. It defaults to `85.0`, the jaw travel the shipped hardware has, and every calibration entry point uses `max_stroke_mm + STOP_INSET_MM` as the scale numerator (`rad_to_mm = (max_stroke_mm + 1.0) ÷ measured rad span`). Set it to **your** unit's jaw travel — measured from the closed stop with a caliper — before you re-probe; it is the one per-unit number no calibration file carries. One wrong value to avoid: the long-gone `120.0` placeholder belonged to no gripper in this family.
 
-Q: Where is the calibration file written? A: `save_calibration()` with no argument writes `~/.litegrip/<channel>_calibration.json` and **returns the path it wrote** — one file per channel, so two grippers on one machine do not overwrite each other. **Neither that file nor the legacy `~/.litegrip/litegrip_calibration.json` is ever read back automatically**: name it with `path=`, or point `LITEGRIP_CALIB` at it. Nothing writes the legacy name any more.
+Q: Where is the calibration file written? A: `save_calibration()` with no argument writes `LITEGRIP_CALIB` when that variable is set, otherwise `~/.litegrip/<channel>_calibration.json`, and **returns the path it wrote** — one file per channel, so two grippers on one machine do not overwrite each other. **Neither that file nor the legacy `~/.litegrip/litegrip_calibration.json` is ever read back automatically**: name it with `path=`, or point `LITEGRIP_CALIB` at it. Nothing writes the legacy name any more.
 
 Q: Why does `home()` not return to the closed end? A: It should. `home()` sends `self._config.pos_closed_rad` — **this instance's calibrated closed limit**, not a module constant — so it returns to the closed end for a normal mount and to the correct end for a reverse mount. If it moves to the wrong end, the calibration was not loaded and `pos_closed_rad` is still the placeholder. (Earlier revisions of this manual claimed `home()` used the constant `0.0 rad` and would drive into the open side. That was wrong; check `config.calibrated` instead.)
 
@@ -1373,7 +1379,7 @@ Q: The position reading disagrees with my caliper? A: They should agree — `pos
 
 Q: The `tau` reading is always slightly smaller than what I set? A: Normal. MIT frames use **truncating** encoding (rounding down), so the quantization error is one-sided: `decoded value − commanded value` falls in the interval `(−1 LSB, 0]`, and it is **never greater than** the value you set.
 
-Q: Does setting `kp` / `kd` to 1000 raise an error? A: No. At encoding time they are **silently saturated** to `[0, 500]` / `[0, 5]`, and `tau` is saturated to `[−10, 10] N·m`; the caller receives no indication at all.
+Q: Does setting `kp` / `kd` to 1000 raise an error? A: Not for `kp` / `kd`: at encoding time they are **silently saturated** to `[0, 500]` / `[0, 5]`, and the caller receives no indication. A `tau` beyond the motor model's frame range (`±10 N·m` for the DM4310) raises `CommandError`, as does any non-finite field.
 
 Q: Reading `OC_Value` gives 0.8; is that 0.8 A? A: **No.** It is a **ratio**, meaning 80%.
 
@@ -1755,7 +1761,7 @@ The SDK has **17** exception classes in total, all inheriting from `LiteGripErro
 | `TrajectoryRecordingError` | `TrajectoryError` | the sampling loop died, or a timed capture did not fill — a partial capture is never returned as if it were whole |
 | `TrajectoryFormatError` | `TrajectoryError` | a byte stream is not a well-formed trajectory file (magic, version, length or sample values invalid) |
 
-> **Note**: The four teleoperation exceptions live in `litegrip.teleop` and the six trajectory ones in `litegrip.trajectory`; all ten are re-exported from `litegrip`, so `from litegrip import TrajectoryFormatError` works. Clamping an out-of-range target and skipping validation of force parameters -- neither raises an exception (see [Motion control](#motion-control-openclose-and-position) and [Grasping and force control](#grasping-and-force-control)).
+> **Note**: The four teleoperation exceptions live in `litegrip.teleop` and the six trajectory ones in `litegrip.trajectory`; all ten are re-exported from `litegrip`, so `from litegrip import TrajectoryFormatError` works. Clamping an out-of-range target, saturating a `kp` / `kd` / `dq`, and leaving the numeric range of `force_n` unchecked do not raise; non-finite values and an over-range `tau` do (see [Motion control](#motion-control-openclose-and-position) and [Grasping and force control](#grasping-and-force-control)).
 
 ## Error handling guidance
 
