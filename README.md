@@ -1,6 +1,6 @@
 # litegrip-docs
 
-[English](README.md) | [简体中文](readme_zn.md)
+[English](README.md) | [简体中文](README.zh-CN.md)
 
 LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and
 education, AI robotics development, and lightweight industrial automation. It uses direct motor drive
