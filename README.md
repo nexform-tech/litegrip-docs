@@ -4,7 +4,7 @@
 
 LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and
 education, AI robotics development, and lightweight industrial automation. It uses direct motor drive
-and an adaptive grasping mechanism, with an effective stroke of 87.000 mm. The gripper communicates
+and an adaptive grasping mechanism, with an effective stroke of 85.000 mm. The gripper communicates
 with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps), and suits grasping, handling,
 loading and unloading, sorting, and algorithm validation.
 
@@ -28,21 +28,19 @@ The documentation covers:
 
 | Component | Repository | Latest version | Released |
 | --- | --- | --- | --- |
-| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v0.9.1 | 2026-09-29 |
-| C++ SDK | [litegrip-cpp](https://github.com/nexform-tech/litegrip-cpp) | v0.1.0 | 2026-09-28 |
+| Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v1.1.0 | 2026-10-14 |
+| C++ SDK | [litegrip-cpp](https://github.com/nexform-tech/litegrip-cpp) | v1.0.9 | 2026-10-14 |
 | ROS 1 driver | [litegrip-ros1](https://github.com/nexform-tech/litegrip-ros1) | Not released | — |
 | ROS 2 driver | [litegrip-ros2](https://github.com/nexform-tech/litegrip-ros2) | v0.1.0 | 2026-09-28 |
-| MoveIt 2 configuration | [litegrip-moveit2](https://github.com/nexform-tech/litegrip-moveit2) | v0.1.0 | 2026-09-28 |
-| MuJoCo simulation | [litegrip-mujoco](https://github.com/nexform-tech/litegrip-mujoco) | v0.2.0 | 2026-09-29 |
-| PyBullet simulation | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.3.0 | 2026-09-29 |
+| MoveIt 2 configuration | [litegrip-moveit2](https://github.com/nexform-tech/litegrip-moveit2) | v0.1.1 | 2026-10-12 |
+| MuJoCo simulation | [litegrip-mujoco](https://github.com/nexform-tech/litegrip-mujoco) | v0.5.0 | 2026-10-10 |
+| PyBullet simulation | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.6.1 | 2026-10-10 |
 | Isaac Sim simulation | [litegrip-isaacsim](https://github.com/nexform-tech/litegrip-isaacsim) | v1.0.1 | 2026-09-27 |
-| URDF model | [litegrip-description](https://github.com/nexform-tech/litegrip-description) | Not released | — |
-| Host application | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.6.0 | 2026-09-29 |
+| URDF model | [litegrip-description](https://github.com/nexform-tech/litegrip-description) | v1.0.0 | 2026-10-12 |
+| Host application | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.12.4 | 2026-10-14 |
 
-**Two rows say "Not released", and they mean different things.** `litegrip-ros1` is a placeholder:
-the repository is initialized, but its source code, packaging and documentation have not landed
-yet, so there is nothing to install. `litegrip-description` holds the model, its launch files and its
-documentation, and simply has no tag yet — take it from the default branch.
+**One row says "Not released".** `litegrip-ros1` is a placeholder: the repository is initialized, but
+its source code, packaging and documentation have not landed yet, so there is nothing to install.
 
 **Every release in this table is source only.** None of these repositories attaches a compiled
 package, so there is no per-platform binary to download. For a component's version history, open its
@@ -58,8 +56,29 @@ python3 -m pip install .
 
 ## 3. Mechanical model
 
-[litegrip-description](https://github.com/nexform-tech/litegrip-description) holds the URDF description. It has no
-tagged release yet, so take it from the default branch.
+[litegrip-description](https://github.com/nexform-tech/litegrip-description) holds the model, and it is released:
+**v1.0.0**. The ROS 2 package is named `litegrip_description`.
+
+| Item | Value |
+| --- | --- |
+| Robot description | `litegrip_description/urdf/litegrip_description.urdf.xacro` — the single source of truth |
+| Links | `base_footprint` (root), `base_link`, `gripper_slider_link1` (right), `gripper_slider_link2` (left) |
+| Joints | `gripper_slide_joint_right` (`+X`), `gripper_slide_joint_left` (`-X`), both prismatic |
+| Meshes | Three STL files: `base_link.STL`, `gripper_slider_link1.STL`, `gripper_slider_link2.STL` |
+| Launch files | `display.launch.py`, `ros2_control.launch.py`, `gazebo.launch.py` |
+| Requirements | ROS 2 Humble on Ubuntu 22.04, system Python 3.10 |
+
+The two joints take the **same sign** to move the fingers symmetrically, because their axes point
+opposite ways. The shipped model's per-finger travel default is `0.042726` m.
+
+```bash
+ros2 launch litegrip_description display.launch.py
+```
+
+Add `stroke:=` to override the per-finger travel used by the model.
+
+The simulations use this model rather than a separate one. PyBullet loads the upstream xacro and
+normalises it at load time, and MuJoCo builds its MJCF on the same three STL meshes.
 
 ## 4. API examples
 

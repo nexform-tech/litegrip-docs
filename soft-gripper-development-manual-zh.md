@@ -2,7 +2,7 @@
 
 [English](soft-gripper-development-manual.md) | [简体中文](soft-gripper-development-manual-zh.md)
 
-LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，有效行程 87.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），配套 Python SDK 与完整协议文档，可用于抓取、搬运、上下料、分拣与算法验证等场景。
+LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，有效行程 85.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），配套 Python SDK 与完整协议文档，可用于抓取、搬运、上下料、分拣与算法验证等场景。
 
 本文档面向**集成工程师**，说明 SDK 的安装、接口用法、参数与返回值、异常、每个接口的**前置条件**，以及底层 CAN 通信协议。产品规格数值（行程、速度、力矩、温度与电气参数等）见[《产品手册》](product-manual-zh.md)与《参数文档》；安全设计依据见《安全说明书》。
 
@@ -42,7 +42,6 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
   - [仿真（MuJoCo、PyBullet、Isaac Sim）](#仿真mujocopybulletisaac-sim)
   - [上位机（litegrip-studio）](#上位机litegrip-studio)
   - [尚未就绪的部分](#尚未就绪的部分)
-  - [报告与验证状态](#报告与验证状态)
   - [常见问题与技术支持](#常见问题与技术支持)
 - [CAN 通信协议](#can-通信协议)
   - [物理层与节点](#物理层与节点)
@@ -87,29 +86,22 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 | 温度 | °C | 摄氏度 |
 | 电压 | V DC | 伏特（直流） |
 
-**开口读数约定**：同一个物理开口有三套表示方式，**零点和方向都不一致**，混用是产生错误数字最常见的原因。
+**开口读数约定**：同一个物理开口有两套表示方式，**零点和方向都不一致**，混用是产生错误数字最常见的原因。
 
 | 表示方式 | 完全闭合 | 完全张开 | 张开时数值 |
 |---------|---------|---------|-----------|
 | 电机角度 `r`（rad） | 标定值 `pos_closed_rad`（**见本机标定文件**） | 标定值 `pos_open_rad`（**见本机标定文件**） | **减小** |
-| SDK 位置 `p`（mm） | 0 | **87.000**（= 有效行程） | 增大 |
-| **实际开口**（mm） | 1.508 | **87.000** | 增大 |
+| SDK 位置 `p` = 实际开口（mm） | 0 | **85.000**（= 有效行程） | 增大 |
 
 > **本文档未特别说明时，"mm"一律指"实际开口"**（即两指内侧面之间的真实距离），因为那是可以用卡尺直接量到的量。
 >
-> **`get_position()` 与 `position_mm` 返回的是上表的 `p`，不是实际开口**，两者在闭合侧相差 1.508 mm 的闭合间隙：
->
-> ```
-> 实际开口 ≈ get_position() + 1.508
-> ```
->
-> 要得到卡尺读数必须做这一步加法。
->
-> **注意这个口径差**：`p` 的跨度是 **87.000 mm**（0 → 87.000），而卡尺实际开口的跨度是 **85.492 mm**（1.508 → 87.000）。**"有效行程 87.000 mm"是 `p` 的口径**，比卡尺跨度大 1.8 %；上式的 `+ 1.508` 在闭合端精确、在张开端会高估 1.508 mm。要毫米级精确，请直接用卡尺标定 `rad_to_mm`（见 [标定与零点](#标定与零点)）。
+> **`get_position()` 与 `position_mm` 返回的就是实际开口。** SDK 的毫米零点在两指相碰的机械全闭处，读数从那里往上涨；完全张开的开口为 **85.000**。它就是卡尺在两指指尖之间量到的数 —— **不是电机角度，也不是单指位移**。以顶到张开端机械挡块结束的运动读数会大约多 **1 mm**（`STOP_INSET_MM = 1.0`），因为标定探针就是在那里找到端点的。
 >
 > **电机角度与标定值因台而异。** rad 端点取自本机标定文件（`~/.litegrip/litegrip_calibration.json`），**每台机器的数值都不同**，所以本文档不写具体数字，请以自己那台的标定文件为准。
 >
 > **换算系数只影响"显示出来的毫米数与毫米目标"。** SDK 的位置钳制用的是 `pos_closed_rad` / `pos_open_rad` 两个 **rad** 值，与毫米换算系数无关 —— 系数写错只会让数字不对，不会改变端点位置。**但这也意味着 SDK 不替你做任何越界判断**：需要"越界就拒答"请自己实现（见 [运动控制（开合与位置）](#运动控制开合与位置)）。
+
+> **有效行程就是 `85.000 mm`，SDK 与之一致。** SDK 的几何常量 `JAW_TRAVEL_MM` 是 `85.0`，单指行程是 `42.5 mm`。本手册与《产品手册》里的每一个毫米数都指同一段行程，没有第二套口径需要对账。
 
 ## 安全须知
 
@@ -159,7 +151,7 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 - 上位机进程卡死或崩溃，运动指令停止发送但机构仍带着最后一条力矩指令；
 - CAN 掉线导致软件无法停机；
 - 位置读数跳变或失效，导致闭环判断错误；
-- 目标位置计算错误（尤其 mm 与 rad 混用、忘记 1.508 mm 间隙）导致机构撞向端点；
+- 目标位置计算错误（尤其 mm 与 rad 混用）导致机构撞向端点；
 - 力参数计算错误导致夹持力过大；
 - **误把"函数返回了"当成"动作完成了"**；
 - 多进程或多个上位机同时向同一台夹爪发送指令。
@@ -182,16 +174,16 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 
 LiteGrip 的 Python SDK 是 `litegrip` 包。它封装达妙 **DM-J4310-2EC** 电机的 MIT 协议，提供连接、使能、运动、抓取、手动示教、标定、遥操作、轨迹录制与回放、状态读取的接口。
 
-**SDK 只做两件事：把毫米换算成电机角度、把牛顿换算成前馈力矩，然后按固定周期把 MIT 帧发到总线上。** 它不做越界检查，不做故障锁存，也不校验力标定。
+**SDK 只做两件事：把毫米换算成电机角度、把牛顿换算成前馈力矩，然后按固定周期把 MIT 帧发到总线上。** 它不校验力标定，不重复实现驱动自身的保护，也不做故障锁存。
 
 | 设计原则 | 在接口上的体现 |
 |---------|--------------|
 | **命令是单向的，反馈才是事实** | CAN 命令帧没有应答；只有电机回传的状态帧能证明命令真的生效 |
 | **位置目标会被钳位到端点** | 超出标定行程的目标会被**静默钳位**到端点，既不报错也不拒绝（见 [运动控制](#运动控制开合与位置)） |
-| **运动前必须先显式加载标定** | `connect()` **不会**自动加载标定文件；没加载时运动跑在占位系数上（见 [配置对象](#配置对象)） |
+| **运动前必须先有标定** | `connect()` **不会**加载标定；在加载之前，每个运动接口都抛 `CommandError`，而不是跑在占位系数上（见 [前置条件与调用约束](#前置条件与调用约束)） |
 | **驱动保护不重复实现** | 过压 / 欠压 / 过流 / 过温 / 断线保护由 DM-J4310-2EC 驱动固件负责 |
 
-> **注意**：**本 SDK 不实现"安全限位"。** 越界目标会被钳位；`kp` / `kd` / `tau` 超出编码范围会被静默饱和；力参数不做任何校验就下发。**防止夹伤工件或夹伤人的措施必须由集成方在软件或硬件上实现。**
+> **注意**：**本 SDK 不实现"安全限位"。** 越界目标会被钳位；`kp` / `kd` / `tau` 超出编码范围会被静默饱和；力设定值是近似换算，而非标定过的测量值。**防止夹伤工件或夹伤人的措施必须由集成方在软件或硬件上实现。**
 
 **支持环境：**
 
@@ -212,13 +204,14 @@ LiteGrip 的 Python SDK 是 `litegrip` 包。它封装达妙 **DM-J4310-2EC** �
 |------|------|
 | `litegrip.gripper` | `LiteGrip`，连接与运动入口 |
 | `litegrip.actions` | `GripperActions` —— open/close/grasp/zero 引擎，以及 `MotionConfig` 与结果对象 |
-| `litegrip.models` | `GripperState`、`GripperConfig`、`GripperInfo`、`GripperStatus`、`GripperMode`、`CalibrationData` |
-| `litegrip.constants` | `GripperParams`、`UnitConversion`、`ErrorCode`、`DefaultParams`、`describe_error` |
+| `litegrip.models` | `GripperState`、`GripperConfig`、`GripperInfo`、`GripperStatus`、`GripperMode`、`CalibrationData`、`STALE_AFTER_S` |
+| `litegrip.constants` | `GripperParams`、`GripperGeometry`、`UnitConversion`、`ErrorCode`、`DefaultParams`、`describe_error` |
 | `litegrip.exceptions` | 六个异常类加基类 |
 | `litegrip.teleop` | `GripperTeleop` 与各传输实现 |
 | `litegrip.trajectory` | `Trajectory`、`TrajectoryRecorder`、`TrajectoryPlayer` —— 手动示教的动作，录制与回放 |
 | `litegrip.zenoh_link` | 遥操作用的 zenoh 传输。惰性导入，需要 `pip install 'litegrip[zenoh]'` |
 | `litegrip.can` | 原始 SocketCAN 传输与达妙电机编解码，多电机机架用 |
+| `litegrip.protocols` | `LiteGripCAN` —— 高层类驱动的单电机总线对象 |
 
 ## 库相关依赖
 
@@ -299,7 +292,7 @@ sudo ip link add dev vcan0 type vcan
 sudo ip link set up vcan0
 ```
 
-> 虚拟总线上没有真实电机，所以**使能这一步会超时**（`enable()` 收不到任何反馈帧，重试耗尽后抛 `HardwareError`）。这是**预期行为**，不是故障。
+> 虚拟总线上没有真实电机，所以**使能这一步会失败** —— 永远不会有状态帧报 `err == 1`，`enable()` 重试耗尽后返回 `EnableResult(ok=False)`。这是**预期行为**，不是故障。
 
 ## 3. 接 24 V 驱动电源
 
@@ -309,26 +302,27 @@ sudo ip link set up vcan0
 
 ## 4. 加载标定
 
-每一台的行程端点与毫米刻度都不同，所以 SDK 出厂带的是占位值，真实的要靠标定文件加载进来。
+每一台的行程端点与毫米刻度都不同，所以运动之前必须先加载标定。不带参数的 `load_calibration()` 读取 SDK 内置的出厂标定，它描述的是出厂机型（正装）。
 
 ```python
 gripper.connect()
-gripper.load_calibration()      # 本通道的文件，再退到出厂标定
+gripper.load_calibration()      # SDK 内置的出厂标定
 gripper.enable()
 ```
 
-> **注意**：**`connect()` 不会加载标定文件。** 它只做两件事：打开总线、注册电机。标定必须由调用方**显式**加载。
+> **注意**：**`connect()` 不会加载标定。** 它只做两件事：打开总线、注册电机。标定必须由调用方**显式**加载。
 >
-> **注意**：**跳过这一步的后果，在 API 上是分成两半的。** 此时 `config` 里仍是 `GripperConfig()` 的默认值（`pos_closed_rad=1.14`、`pos_open_rad=0.0`、`rad_to_mm=105.26`），`config.calibrated` 为 `False`。
+> **注意**：**没有标定之前，什么都不会动。** 此时 `config` 里仍是 `GripperConfig()` 的默认值（`pos_closed_rad=1.14`、`pos_open_rad=0.0`、`rad_to_mm=75.44`），`config.calibrated` 为 `False`。
 >
 > | 层次 | 未标定时的行为 |
 > |------|------|
-> | `open()`、`close()`、`grasp()` | **拒绝执行**，抛 `CommandError`（"配置尚未标定…"）。动作层要经过 `limit_target()` / `press_target()`，这两个函数都会调标定检查 |
-> | `goto()`、`goto_rad()`、`move_to()`、`move_at_speed()`、`move_at_speed_rad()`、`home()`、`send_mit_frame()` | **照常执行**，静默地跑在占位系数上 |
+> | `open()`、`close()`、`grasp()` | **拒绝执行**，抛 `CommandError`。动作层要经过 `limit_target()` / `press_target()`，这两个函数都会调标定检查 |
+> | `goto()`、`goto_rad()`、`move_to()`、`move_at_speed()`、`move_at_speed_rad()`、`home()` | **同样拒绝**，每个定位接口都走同一道检查，因为占位限位描述的并非真实行程 |
+> | `send_mit_frame()`、`enter_zero_gravity()`、`stop()` | **照常执行**，因为它们没有可检查的位置目标 |
 >
-> 也就是说，*高层*动作会大声失败——这是好事，崩溃容易发现。*中层*接口则是安静地失败，这才是问题。**把这道检查当作一层的安全网，而不是"可以不调 `load_calibration()`"的理由。**
+> 所以分界线是"目标"而不是"层次"：要把夹爪开到某个位置的调用会拒绝，只往总线上放一帧的调用不会。**把这道检查当作安全网，而不是"可以不调 `load_calibration()`"的理由。**
 
-`load_calibration()` 可以不带参数、带 `path=`、或带 `template=`；不带参数时先找本通道自己的文件，再找旧的单文件路径，最后退到 SDK 内置的出厂标定。完整查找顺序见 [标定与零点](#标定与零点)。
+`load_calibration()` 可以不带参数、带 `path=`、或带 `template=`；不带参数时读取 SDK 内置的出厂标定，并在设置了 `LITEGRIP_CALIB` 环境变量时一并读取该文件。完整查找顺序见 [标定与零点](#标定与零点)。
 
 ## 5. 跑起来：让夹爪动一下
 
@@ -338,7 +332,7 @@ gripper.enable()
 from litegrip import LiteGrip
 
 with LiteGrip(channel="can0", can_id=0x08) as gripper:
-    gripper.load_calibration()   # 本通道的标定文件，再退到出厂标定
+    gripper.load_calibration()   # SDK 内置的出厂标定
     gripper.enable()             # 重试到状态帧报 err == 1 为止
 
     gripper.open()                                     # 以 50 mm/s 顶到张开侧限位
@@ -359,10 +353,10 @@ python3 first_move.py
 |------|------|
 | `with LiteGrip(...) as gripper:` | 打开 CAN 总线并注册电机。离开 with 块时调用 `disconnect()`，默认会先失能电机 |
 | `gripper.load_calibration()` | 把本台的行程端点与毫米刻度读进 `config` |
-| `gripper.enable()` | 先失能、切 MIT 模式、使能，然后**等一帧反馈**确认。返回 `EnableResult` |
+| `gripper.enable()` | 先清除已锁存的故障，再使能，然后**等状态帧报 `err == 1`**。返回 `EnableResult` |
 | `gripper.open()` | 朝张开侧斜坡运动，直到机械限位结束这段运动。返回 `MoveResult` |
 | `gripper.close()` | 在闭合侧做同样的事 |
-| `gripper.grasp(force_n=20.0, hold_s=3.0)` | 闭合到位置不再变化，然后保持 20 N 前馈力矩 3 秒。返回 `GraspResult` |
+| `gripper.grasp(force_n=20.0, hold_s=3.0)` | 闭合到物体上——夹口之间没有东西时则闭合到闭合侧限位——再保持 `force_n` 3 秒。返回 `GraspResult` |
 
 **预期输出** —— `GraspResult` 的三个字段：
 
@@ -370,11 +364,11 @@ python3 first_move.py
 False True 12
 ```
 
-`stalled=True` 表示位置停止变化，也就是手指碰到物体的情形。`reached` 为 `False` 是因为夹口没到目标角度。`cycles` 是闭合阶段跑了多少个控制周期。
+`stalled=True` 表示位置停止变化，也就是手指碰到物体的情形。`reached` 为 `False` 是因为夹口没到目标角度。`cycles` 是闭合阶段跑了多少个控制周期。**要看的是 `result.ok`，不是 `reached`**：夹住东西的抓取会报 `ok=True`、`stalled=True`。
 
 > **不要**指望抓住东西时 `reached=True`。抓取场景里 `stalled=True`、`reached=False` 才是成功。`open()` 和 `close()` 恰好相反：它们是靠顶住机械限位来成功的，所以 `ok=True` 总是伴随 `stalled=True`。
 
-> **注意**：**这三段示例是按 SDK 源码及其 README 写的，本版手册没有在硬件上跑过。** 接口名、签名与默认值都已对照 SDK 核过，但打印出来的是示例数值——你的 `cycles` 计数和具体位置都会不同。见 [报告与验证状态](#报告与验证状态)。
+> **注意**：这三段示例的接口名、签名与默认值都已对照 SDK 核过；打印出来的是示例数值，你的 `cycles` 计数和具体位置都会不同。
 
 ## 6. 夹爪不动的时候
 
@@ -382,7 +376,7 @@ False True 12
 |------|------|------|
 | `enable()` 抛 `HardwareError`，没有任何反馈 | 没有 24 V；电机不应答 | 量 24 V 母线；没有 24 V 时错误码是 `0x9` |
 | 虚拟总线上 `enable()` 抛 `HardwareError` | 预期行为——`vcan0` 上没有电机 | 无需处理；使能这一步要用真实硬件 |
-| 什么都不动，也不报错 | 标定没加载，所有目标都钳到同一个值 | 调 `load_calibration()`，检查 `config.calibrated` |
+| 抛 `CommandError` 说标定缺失，或者什么都不动 | 标定没加载——每个定位接口都会拒绝 | 调 `load_calibration()`，检查 `config.calibrated` |
 | 什么都不动，`ERR = 0x9` | 欠压——驱动电源缺失或跌落 | 带载量 24 V 母线 |
 | 什么都不动，`ERR = 0xA` | 过流——手指碰到障碍或硬限位 | 排除障碍后 `clear_fault()` |
 | 什么都不动，`ERR = 0xB` / `0xC` | MOS 或线圈过温 | 等它降温；检查占空比 |
@@ -410,7 +404,7 @@ gripper.clear_fault()   # 清驱动故障
 
 **`enable()` 的完整时序**：失能 → 切 MIT 模式 → 使能 → **等一帧反馈确认**。如果当前错误码不是 `0x0` / `0x1`，它会先自动调一次 `clear_fault()` 清故障。
 
-**`enable()` 返回 `EnableResult`**，只有命令发出后收到了有效反馈帧（`ERR ∈ {0x0, 0x1}`），`ok` 才为 `True`；重试耗尽仍未确认则抛 `HardwareError`——它不会伪造成功。`tries` 报告用了几次尝试。
+**`enable()` 返回 `EnableResult`**，只有命令发出后回读到的状态帧报 `ERR == 0x1`（"真使能"码），`ok` 才为 `True`；真实故障（`ERR ∉ {0x0, 0x1}`）会在下一次尝试前先清除。重试耗尽时它返回 `ok=False` —— **不抛异常** —— 所以要检查 `ok`，不能靠捕获异常。`tries` 报告用了几次尝试。
 
 **本节接口只检查两件事：已连接、已使能。** 任一不满足即抛 `NotInitializedError`。
 
@@ -425,26 +419,26 @@ gripper.clear_fault()   # 清驱动故障
 
 ## 运动控制（开合与位置）
 
-**两层，而且两层对"标定"的态度不一致。**
+**两层，而且两层共用同一道标定检查。**
 
 | 层次 | 方法 | 前置条件 | 未标定时 |
 |------|------|------|------|
-| **高层动作** | `open`、`close`、`grasp`、`zero` | 已连接、已使能、**已标定** | 抛 `CommandError` |
-| **中层接口** | `goto`、`goto_rad`、`move_to`、`move_at_speed*`、`home` | 已连接、已使能 | 跑在占位系数上 |
+| **高层动作** | `open`、`close`、`grasp` | 已连接、已使能、**已标定** | 抛 `CommandError` |
+| **定位接口** | `goto`、`goto_rad`、`move_to`、`move_at_speed*`、`home` | 已连接、已使能、**已标定** | 同样抛 `CommandError` |
 
-高层动作跑的是闭环引擎：带速度前馈的斜坡、堵转检测，并返回结果对象。中层接口按固定时长发 MIT 帧流，返回一个普通 `bool`。
+高层动作跑的是闭环引擎：带限幅前瞻的斜坡、堵转检测，并返回结果对象。定位接口跑的也是一条限幅斜坡；两类接口的差别只在速度怎么给，而不在保证什么。
 
-> **本节接口整体只检查已连接与已使能**，任一不满足抛 `NotInitializedError`。标定**只有**高层动作会查，路径是 `limit_target()` / `press_target()`；**`goto` / `goto_rad` / `move_to` / `move_at_speed*` / `home` 从不检查标定**——没加载标定时它们不报错，继续用 `rad_to_mm = 105.26` 换算毫米。
+> **每个定位接口都会拒绝未标定的配置**，因为目标是按标定行程推出来的，而占位值描述的并非真实行程。本手册早前的版本写着 `goto` / `move_at_speed*` / `home` 这一族跑在占位 `rad_to_mm` 上；现在不是了。
 
 | 方法 | 目标 | 说明 |
 |------------------------|--------------------------------------------|--------------------------------|
-| `open()` | 越过标定的张开端点 | 斜坡顶到张开侧机械限位，由限位结束运动；返回 `MoveResult` |
-| `close()` | 越过标定的闭合端点 | 在闭合侧做同样的事；要出力抓取请用 `grasp()` |
+| `open()` | 越过标定的张开端点 | 斜坡顶到张开侧机械限位，由限位结束运动。设置了 `GripperConfig.work_stroke_mm` 时改为停在该开口——随包标定写的是 `80.0`；返回 `MoveResult` |
+| `close()` | 越过标定的闭合端点 | 在闭合侧做同样的事；`work_stroke_mm` 不改变闭合的终点。要出力抓取请用 `grasp()` |
 | `grasp()` | 闭合到堵转，然后保持力 | 返回 `GraspResult`；见 [抓取与力控](#抓取与力控) |
 | `zero()` | 依次到两端 | 完整标定；返回 `CalibrationData` |
-| `home()` | `config.pos_closed_rad` | **用本实例标定出的闭合限位**，所以反装的机器会回到正确的那一端；返回 `bool` |
+| `home()` | `config.pos_closed_rad` | 斜坡走到标定的闭合位置——是停在零点**上**，不是顶上去；返回 `MoveResult` |
 | `goto()` | 绝对位置（mm） | 内部换算成 rad 后走 `goto_rad()` |
-| `goto_rad()` | 绝对位置（rad） | 唯一会做钳位的对外入口 |
+| `goto_rad()` | 绝对位置（rad） | 弧度版本。`dq_target` 与 `tau_feedforward` 必须为 0，否则抛 `CommandError` |
 | `move_to()` | 绝对位置（rad） | 它就是 `goto_rad()`，只是默认时长更长 |
 | `move_at_speed()` | 定线速度运动 | 端点同样被钳位 |
 | `move_at_speed_rad()` | 定角速度运动 | 端点同样被钳位 |
@@ -456,29 +450,28 @@ gripper.clear_fault()   # 清驱动故障
 |------|------|------|
 | `kp` / `kd` | 100.0 / 2.0 | 位置刚度 / 阻尼 |
 | `duration` | 见签名 | 运动时长（秒） |
-| `force_n` | `None` | 目标夹持力（N）；`None` = 不加前馈力矩 |
-| `dq_target` | `0.0` | 目标速度前馈（rad/s），仅 `goto_rad` |
-| `tau_feedforward` | `0.0` | 前馈力矩（N·m）；`goto_rad` / `move_to` 直接收它，`set_force` 收的是 `force_n` 换算来的值 |
+| `force_n` | `None` | 目标夹持力（N），仅 `grasp()` 使用；`None` 时回落到 `MotionConfig.force_n`（20.0） |
+| `dq_target` | `0.0` | 目标速度前馈（rad/s），仅 `goto_rad`。**必须为 0** |
+| `tau_feedforward` | `0.0` | `goto_rad` / `move_to` 的前馈力矩（N·m）。**必须为 0**：斜坡自己推导前馈，给别的值会抛 `CommandError` |
 | `speed_mm_s` | `MotionConfig.speed_mm_s`（50.0） | `open` / `close` 的开合速度 |
-| `speed_mm_s` | 30.0[未实测] | `move_at_speed` 的线速度（mm/s） |
-| `speed_rad_s` | 0.5[未实测] | `move_at_speed_rad` 的角速度（rad/s） |
+| `speed_mm_s` | 30.0 | `move_at_speed` 的线速度（mm/s） |
+| `speed_rad_s` | 0.5 | `move_at_speed_rad` 的角速度（rad/s） |
 
-> `duration` 的默认值写在下面的签名里：`home` / `move_to` 是 1.0 秒，`goto` / `goto_rad` 是 0.5 秒，`set_force` 是 0.3 秒。
+> `duration` 的默认值写在下面的签名里：`move_to` 是 1.0 秒，`goto` / `goto_rad` 是 0.5 秒。
 
 **完整签名：**
 
 ```python
-home() -> bool
+home() -> MoveResult
 open(speed_mm_s=None, *, progress=None) -> MoveResult
 close(speed_mm_s=None, *, progress=None) -> MoveResult
-goto(position_mm, kp=None, kd=None, duration=0.5) -> bool
+goto(position_mm, kp=None, kd=None, duration=0.5) -> MoveResult
 goto_rad(position_rad, kp=None, kd=None,
-         dq_target=0.0, tau_feedforward=0.0, duration=0.5) -> bool
+         dq_target=0.0, tau_feedforward=0.0, duration=0.5) -> MoveResult
 move_to(target_rad, kp=None, kd=None,
-        tau_feedforward=0.0, duration=1.0) -> bool
-set_force(force_n, duration=0.3) -> bool
-move_at_speed(target_mm, speed_mm_s=30.0, kp=None, kd=None) -> bool
-move_at_speed_rad(target_rad, speed_rad_s=0.5, kp=None, kd=None) -> bool
+        tau_feedforward=0.0, duration=1.0) -> MoveResult
+move_at_speed(target_mm, speed_mm_s=30.0, kp=None, kd=None) -> MoveResult
+move_at_speed_rad(target_rad, speed_rad_s=0.5, kp=None, kd=None) -> MoveResult
 send_mit_frame(q, kp, kd, dq=0.0, tau=0.0) -> bool
 ```
 
@@ -510,32 +503,33 @@ with LiteGrip(channel="can0", mst_id=0x18) as gripper:
 grasp(force_n=None, hold_s=0.0, *, progress=None) -> GraspResult
 ```
 
-`force_n=None` 时取 `MotionConfig.force_n`（20.0 N）。`hold_s=0.0` 表示保持到出故障或你按 Ctrl+C。
+`force_n=None` 时取 `MotionConfig.force_n`（20.0 N）。`hold_s=0.0` 表示保持到出故障、失控看门狗触发、或你按 Ctrl+C。
 
-**时序**：朝机械限位做斜坡闭合 → **每个周期比较位置** → 位置变化连续 `MotionConfig.stall_cycles` 个周期低于堵转判据即判定"已抓住"，随后以 `force_n × 0.1` N·m 的**前馈力矩**保持。
+**时序**：朝物体（或闭合侧限位）做斜坡闭合 → **每周期比较位置** → 只有夹口停下之后保持阶段才接管，此后发的是**零增益帧**，驱动唯一的输出就是 `force_n × 0.1` N·m 的前馈力矩。
 
 > **这里的"自适应"指位置堵转检测，不是力矩检测。** 判据是加窗位置变化低于 `MotionConfig.stall_delta`，与力矩读数无关。
+
+**`grasp()` 是唯一能"带着力去压"的接口。** 没有"在当前位置施加一个力"的调用，这是刻意的：那种调用无法判断夹口之间有没有东西，而保持帧不给驱动任何位置或速度误差可用，没有东西时力矩就是唯一的力，夹口会一路加速。`grasp()` 从结构上避开了这一点。
 
 | `GraspResult` 字段 | 含义 |
 |------|------|
 | `ok` | 保持阶段正常结束。`bool(result)` 返回的就是它 |
-| `reached` | 夹口到达目标角度、没有堵转 |
+| `reached` | 夹口到达目标角度、没有堵转——也就是空夹合拢 |
 | `stalled` | 位置停止变化——**夹住物体时的正常结果** |
 | `state` | 保持结束时的 `GripperState` |
 | `target_rad` / `force_n` | 目标角度与所保持的力 |
-| `cycles` | 闭合阶段跑过的控制周期数 |
+| `cycles` | 闭合阶段跑过的控制周期数。`0` 表示保持阶段根本没进入 |
+| `travel_guard` | 失控看门狗触发并卸掉了力矩，见下文 |
 
 > **注意**：**成功的抓取报的是 `stalled=True`、`reached=False`。** 因为堵转判据是位置式的，夹住物体和走到行程端点对它来说是一样的——**光靠这两个标志分不出"夹到东西"和"空夹到限位"。** 请配合 `get_position()`：空夹会停在闭合端点，夹到物体则停在端点之前。
 
-**不闭合、只加力：**
+> **注意**：**有一个失败组合是本版新增的。** `ok=False`、`reached=False`、`stalled=False` 且 `cycles=0`，说明闭合段帧数用尽时夹口仍在自由行程中。此时不会进入保持阶段——保持帧既没有位置项也没有速度项，把还在动的夹口交给它，前馈力矩就成了唯一作用力。这一调用会在原地卸力返回，什么都没夹住。
 
-```python
-set_force(force_n, duration=0.3) -> bool
-```
+**失控看门狗。** 保持帧没有位置误差，因此任何位置限位都约束不到它；唯一能动的杠杆就是撤掉力矩。一旦实测位置越过闭合侧标定限位 `hold_runaway_rad`（`0.05 rad`），`grasp()` 会发零力矩释放帧并带着 `travel_guard` 返回。它是失控探测器，不是精度边界。**空夹正是会触发它的情形**，而触发之后夹口就留在标定行程之外了：先 `disable()`，用手把夹口推回限位内，再 `enable()`，然后才能下别的命令。
 
-以 `kp=150.0, kd=2.0` 保持当前位置，并叠加 `force_n × 0.1` N·m 的前馈，持续 `duration` 秒。
+> **不要**在 `travel_guard` 触发之后直接再调一次 `grasp()`：闭合段会再次逼近同一个限位，保持阶段也会再次压上去。
 
-> **注意**：**力参数完全不做校验。** `force_n` 按标称系数 `UnitConversion.N_TO_NM = 0.1 N·m/N` 换算后原样下发，负值就按负力矩发。`force_n=20.0` 对应 `2.0 N·m` 前馈，是力矩编码上限 `10 N·m` 的五分之一。
+> **注意**：**力参数既没标定也不做校验。** `force_n` 按标称系数 `UnitConversion.N_TO_NM = 0.1 N·m/N` 换算，负值就按负力矩发。`force_n=20.0` 对应 `2.0 N·m` 前馈，是力矩编码上限 `10 N·m` 的五分之一。
 >
 > ```python
 > gripper.grasp(force_n=0)      # 只按位置闭合：不加前馈力矩
@@ -560,9 +554,13 @@ state = gripper.get_state(wait=True)
 | `temperature_mos` | `int` | MOS 温度（℃） |
 | `temperature_coil` | `int` | 线圈温度（℃） |
 | `error_code` | `int` | 电机错误码 |
-| `timestamp` | `float` | 采样时间戳 |
+| `timestamp` | `float` | 这份快照所依据的那帧的到达时刻。`0.0` 表示一帧都没有 |
+| `fresh` | `bool` | **本次**读取有帧应答 |
+| `data_age_s` | `float` 或 `None` | 距那帧到达过了多少秒；从未收到过则为 `None` |
 
 `get_state(wait=True)` 最多等 50 ms 收一帧新反馈；`wait=False` 直接返回上一帧缓存，适合高频控制循环。
+
+> **注意**：**这些读数是缓存，只有状态帧会更新它。** 正在被驱动的电机会应答收到的命令帧、自己上报；保持姿势或已失能的电机什么都不发，此时 `wait=True` 会把 50 ms 等满，然后交回上一帧。信任某个数之前先看 `fresh` 与 `is_stale()`，总线空闲时用 `refresh_status()` 主动要一帧。**不要**用 `timestamp` 给循环计时——那是 `data_age_s` 的事。
 
 **派生属性：**
 
@@ -571,11 +569,11 @@ state = gripper.get_state(wait=True)
 | `is_enabled` | 电机是否已使能（`error_code == 1`） |
 | `is_error` | 是否处于故障（`error_code` 既非 0 也非 1） |
 | `is_moving` | 速度是否超过小阈值（0.01） |
-| `aperture_mm` | 开合读数（**单指位移**） |
+| `aperture_mm` | 开合读数 —— 就是完整开口，与 `position_mm` 相同 |
 
 > **注意**：**`force_n` 是估算值**，由 `torque_nm × UnitConversion.NM_TO_N` 折算，而 `NM_TO_N = 10.0` 是**标称换算系数**（源码注释标的是 `approximate`），不是标定值。**在力标定完成之前，请不要把 `force_n` 当作真实夹持力。**
 >
-> **总开口 = `aperture_mm` × 2**（该字段是单指位移）。单指行程 43.500 mm × 2 = 总行程 87.000 mm。
+> **`aperture_mm` 本身已经是完整开口。** 随货 SDK 里这个属性原样返回 `position_mm`，即 `aperture_mm == position_mm`，**不要再乘 2**。单指行程是 42.500 mm，把**它**乘 2 才是 85.000 mm 的总行程。
 
 **便捷读取方法：**
 
@@ -587,6 +585,7 @@ state = gripper.get_state(wait=True)
 | `get_error()` | 错误码 |
 | `get_temperature()` | `(MOS 温度, 线圈温度)` |
 | `get_info()` | `GripperInfo` —— 型号、电机型号、CAN ID、固件版本、序列号 |
+| `refresh_status()` | 主动向电机要一帧状态帧（`0xCC`），**不移动夹口**。空闲过的夹爪在读 `get_state()` 之前先用它 |
 
 **状态判定方法：**
 
@@ -613,21 +612,21 @@ state = gripper.get_state(wait=True)
 
 ```python
 # goto()（gripper.py）
-position_rad = config.pos_closed_rad - position_mm / config.rad_to_mm
+position_rad = config.pos_closed_rad - position_mm / (config.close_sign * config.rad_to_mm)
 
 # get_state()（gripper.py）
-position_mm = (config.pos_closed_rad - position_rad) * config.rad_to_mm
+position_mm = (config.pos_closed_rad - position_rad) * config.close_sign * config.rad_to_mm
 ```
 
-也就是说，**`rad` 越小开口越大**；`pos_closed_rad` 是数值较大的一端，`pos_open_rad` 是数值较小的一端。
+**`close_sign` 携带安装方向**：`+1.0` 表示 rad 增大即闭合，反装为 `-1.0`。两种安装下，结果都是闭合限位处 0 mm、张开限位处满行程。常见的正装下 **`rad` 越小开口越大**，`pos_closed_rad` 是两个限位里较大的那个；反装则相反。**漏掉 `close_sign` 的换算会把开口读反。**
 
-**换算系数 `rad_to_mm` 由标定过程写入**，等于"用于标定的行程（mm）÷ 实测角行程（rad）"。本机实测值为：
+**换算系数 `rad_to_mm` 由标定过程写入**，等于"刻度分子（mm）÷ 实测角行程（rad）"；分子是 `config.max_stroke_mm + STOP_INSET_MM`，即行程加上探针压进张开止点的那 1 mm。
 
-> **有效行程 87.000 mm ÷ 本机实测角行程（rad）= 本机 `rad_to_mm`**。分子是 `config.max_stroke_mm`，分母是标定过程中实测的 rad 跨度；**两个数都随机而异**。本机的取值见随机附带的标定文件与《产品手册》的[行程与位置参数](product-manual-zh.md#行程与位置参数)一节。
+> **（`max_stroke_mm + STOP_INSET_MM`）÷ 本机实测角行程（rad）= 本机 `rad_to_mm`**。分母是标定过程中实测的 rad 跨度；**两个数都随机而异**。本机的取值见随机附带的标定文件与《产品手册》的[行程与位置参数](product-manual-zh.md#行程与位置参数)一节。
 
 > **注意**：**`rad_to_mm` 只影响"显示的毫米数与毫米目标"**；它不动任何边界，因为钳位用的 `pos_closed_rad` / `pos_open_rad` 本身就是 rad 值，不依赖 `rad_to_mm`。系数错了只是毫米数不对。
 >
-> **注意**：**`position_mm` 与卡尺量到的开口差 1.508 mm。** SDK 的 mm 零点在机械全闭处，而该处两指之间还有 1.508 mm 间隙。卡尺读数 ≈ `get_position() + 1.508`（该式在闭合端精确，在张开端高估约 1.5 mm；精确关系见 [单位说明](#单位说明)）。
+> **注意**：**`position_mm` 就是卡尺量到的开口。** SDK 的 mm 零点在机械全闭处（两指相碰），读数从那里往上涨；完全张开的开口是 85.000，顶到张开端挡块的运动读数会大约多 1 mm（`STOP_INSET_MM = 1.0`）。若卡尺读数与 `position_mm` 的差值超出这个范围，说明 `rad_to_mm` 标错了，不是公式不对。
 
 ## 手动示教（零重力）
 
@@ -698,7 +697,7 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 | `load_calibration(path=None, template=None) -> bool` | 把标定加载进 `config`。请在 `connect()` 之后、`enable()` 之前调用 |
 | `load_template(name) -> bool` | 加载 `"normal"` 或 `"reverse"` 安装模板，声明安装方向。`name` 必须是 `list_templates()` 之一 |
 
-**不带参数时 `load_calibration()` 的查找顺序**：本通道自己的文件 → 旧的单文件路径 `~/.litegrip/litegrip_calibration.json` → SDK 内置的出厂标定。传 `path=` 读指定文件（仍可能退到出厂文件），传 `template="normal"` / `template="reverse"` 加载安装模板（这条路径是严格的，不会退）。同时传 `path` 与 `template` 会抛 `CommandError`。
+**不带参数时 `load_calibration()` 的查找顺序**：环境变量 `LITEGRIP_CALIB` 指定的文件，然后是 SDK 内置的出厂标定。`~/.litegrip` 下的文件**永远不会被隐式读取** —— 本次加载跳过了哪些，会在告警里点名，并给出会用到它的调用。传 `path=` 读指定文件（仍可能退到出厂文件），传 `template="normal"` / `template="reverse"` 加载安装模板（这条路径是严格的，不会退）。同时传 `path` 与 `template` 会抛 `CommandError`。
 
 > **注意**：**`load_calibration()` 不校验来源的任何内容。** 它只处理"文件不存在"和"JSON 解析失败"；文件里写什么它就信什么。如果文件标注的通道不是当前通道，它会跳过并打一条警告，而不是失败。
 >
@@ -706,30 +705,30 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 
 **关于标定出的换算系数：**
 
-系数按 `rad_to_mm = 用于标定的行程（mm）÷ 实测角行程（rad）` 计算，其中"用于标定的行程"取自：
+刻度按 `rad_to_mm = （max_stroke_mm + STOP_INSET_MM）÷ 实测角行程（rad）` 计算，其中内压量是 `GripperGeometry.STOP_INSET_MM`（1.0 mm）。
 
 | 入口 | 分子取值 |
 |------|---------|
-| `zero()` / `calibrate()` / `calibrate_manual()` | `config.max_stroke_mm`，**默认 `120.0`** |
-| `calibrate_guided()` | `config.max_stroke_mm` |
+| `zero()` / `calibrate()` / `calibrate_guided()` / `calibrate_manual()` | `config.max_stroke_mm + GripperGeometry.STOP_INSET_MM` |
 
-> **该格的取值约定已定：用"有效行程"，本机为 `87.000 mm`** [卡尺复测全开开口 87.000 mm，与有效行程同值]。
-> 该值已写入本机标定文件的 `max_stroke_mm`。
->
-> **读数约定（必读）**：`87.000` 是 **SDK 位置 `p` 的跨度**（0 → 87.000），而**实际开口**用卡尺量出的跨度是
-> **85.492 mm**（张开端 87.000，闭合端 1.508）。也就是说，`max_stroke_mm = 87.0` 会让 SDK 的"1 毫米"
-> 比真实毫米**大 1.8 %**（87.000 ÷ 85.492）。**要毫米级精度，请用卡尺跨度 `85.492` 作分子**，
-> 并在标定后核对 `rad_to_mm = 85.492 ÷ 实测 rad 跨度`。
+分子比手指行程多出整整一毫米，这是刻意的：探测过程会**压进**张开侧止点去找它，
+因此记录到的两个极值比手指实际能走的行程多出约一毫米。
 
-> **注意**：**默认的 `120.0` 是占位行程，不是本机实测行程（本机 87.000 mm）。** 如果按默认配置标定，算出的 `rad_to_mm` **整体偏大 1.38 倍**（87.000 → 120 之比）并被写进标定文件；此后每一次毫米读数和每一个基于毫米的阈值都会差 38 %，而文件里的 `travel_range_rad` 那一格看起来完全正常，事后极难发现。
->
-> **正确做法**：先用游标卡尺量出全开开口，把 `max_stroke_mm` 设成实测值（本机 `87.000`，若要卡尺跨度则 `85.492`），再标定；标定结束后核对写进去的 `rad_to_mm` 是否等于"你输入的分子 ÷ 实测 rad 跨度"。
->
-> **注意**：这些入口只在 `travel <= 0` 时抛 `RuntimeError`；`max_stroke_mm` 取 `0` 或 `120.0` **不会**报错。
+> **注意**：**`max_stroke_mm` 默认是 `85.0`，也就是出厂机型的手指行程。** 重新标定之前请把它改成
+> 你自己那台的手指行程——这是标定文件唯一不携带的逐台测量值。
+
+> **不要**拿别的机型上抄来的名义开口当 `max_stroke_mm`。`p` 是由标定出的 `rad_to_mm` 推出来的，
+> 只有刻度正确时它才等于手指行程。
+
+> **注意**：**只用 `max_stroke_mm` 推刻度会短 1.2 %**——一个满行程丢掉 1 mm——这正是要加进那个内压量的原因。
+
+> **注意**：**本手册早前的版本警告过相对占位值 `120.0` 的 1.38 倍误差。** 那个数已作废：`120 mm` 从来不属于这个系列的任何一台夹爪。手指行程是 `85.0`。
+
+> **注意**：这些入口只在 `travel <= 0` 时抛 `RuntimeError`；`max_stroke_mm` 取 `0` **不会**报错，请自己核对填了什么。
 
 ## 配置对象
 
-**`GripperConfig` 字段（共 13 个）：**
+**`GripperConfig` 字段（共 14 个）：**
 
 | 字段 | 默认值 | 说明 |
 |------|------|------|
@@ -737,8 +736,9 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 | `kp` / `kd` | `100.0` / `2.0` | 位置刚度 / 阻尼（各接口省略时的默认值） |
 | `pos_closed_rad` / `pos_open_rad` | `1.14` / `0.0` | 行程两端（**标定后被标定文件覆盖**） |
 | `calibrated` | `False` | 是否已加载标定（**由 `load_calibration()` 置位**） |
-| `max_stroke_mm` | `120.0`（**占位值；本机应填入 `87.000`**） | 机械行程（mm），**只在标定时用作刻度分子**；见 [标定与零点](#标定与零点) |
-| `rad_to_mm` | `105.26` [标定后由脚本算出] | 角度 → 毫米换算（**未标定时是占位值**） |
+| `max_stroke_mm` | `85.0`（`GripperGeometry.JAW_TRAVEL_MM`） | 你这台的手指行程。**只在标定时用作刻度分子**，还要加上 `STOP_INSET_MM`；见 [标定与零点](#标定与零点) |
+| `work_stroke_mm` | `0.0`（**随包标定写入 `80.0`**） | 普通 `open()` 停在哪里，自闭合零点起算（mm）。它从不改变 `close()` 的终点：闭合端始终停在机械止点 |
+| `rad_to_mm` | `75.44`（**未标定时是占位值**） | 角度 → 毫米换算；标定文件会覆盖它 |
 | `nm_to_n` | `10.0` | 力矩 → 力换算。**当前代码不读这个字段**，实际用的是类常量 `UnitConversion.NM_TO_N = 10.0`，改它没有效果 |
 | `grasp_torque_threshold` | `0.5`（无依据，力标定完成前无法定值） | `is_grasped()` 的判定阈值（N·m） |
 
@@ -753,11 +753,11 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 
 > **注意**：**`pos_closed_rad` / `pos_open_rad` / `rad_to_mm` 的默认值是占位值，不是本机的真值。** 真值在标定文件里，只有显式调用 `load_calibration()` 才生效（`connect()` 不会做这件事）。`config.calibrated` 告诉你现在跑的是哪一套。
 
-> **注意**：**不要在默认配置下跑中层接口。** 它们不检查 `calibrated`，所以 `rad_to_mm = 105.26` 会把每个毫米目标静默换算成错误的角度，而 `max_stroke_mm = 120.0` 是错的标定分子。高层动作起码会抛 `CommandError`，它们不会。**这就是"下任何运动命令之前先调 `load_calibration()`"最直接的理由。**
+> **注意**：**不要在默认配置下下达运动命令。** 每一个定位接口都会检查 `calibrated`，为 `False` 时抛 `CommandError`；而这些占位值描述的是出厂机型，不是你这台——`max_stroke_mm = 85.0` 是标定前仍需你确认的实测值，`rad_to_mm = 75.44` 对任何一台（包括出厂机）都是错的刻度。**这就是"下任何运动命令之前先调 `load_calibration()`"最直接的理由。**
 
 ## 前置条件与调用约束
 
-**SDK 有三道前置检查，而且应用得并不一致。** `_check_connected()` 与 `_check_enabled()` 失败时抛 `NotInitializedError`；`_check_calibrated()` 抛 `CommandError`，且**只能**经由 `limit_target()` / `press_target()` 到达，也就是只有高层动作会触发它。
+**SDK 有三道前置检查。** `_check_connected()` 与 `_check_enabled()` 失败时抛 `NotInitializedError`；`_check_calibrated()` 抛 `CommandError`。自 v1.1.0 起，每一条运动路径都会跑标定检查，中层和高层一视同仁。
 
 | 接口 | 已连接 | 已使能 | 已标定 | 说明 |
 |------|:---:|:---:|:---:|------|
@@ -766,14 +766,15 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 | `stop` | — | — | — | **不检查**。未连接或未使能时是空操作，返回 `None` |
 | `send_mit_frame` | — | — | — | **不抛异常**。前置条件不满足时直接返回 `False` |
 | `poll` | — | — | — | **不抛异常**。未连接时返回 `False` |
-| `goto` / `goto_rad` / `move_to` / `move_at_speed` / `move_at_speed_rad` | ● | ● | — | |
-| `home` | ● | ● | — | 用 `config.pos_closed_rad`——未标定时那是**占位值** |
+| `goto` / `goto_rad` / `move_to` / `move_at_speed` / `move_at_speed_rad` | ● | ● | **●** | 这五个都汇入同一条斜坡，斜坡拒绝未标定的配置 |
+| `home` | ● | ● | **●** | 经 `move_to()` 朝标定出的闭合端走 |
 | `open` / `close` / `grasp` | ● | ● | **●** | 未标定时抛 `CommandError` |
 | `zero` / `calibrate` / `calibrate_guided` / `calibrate_manual` | ● | ● | — | 它们*产出*标定，所以不能要求已有标定 |
-| `set_force` | ● | ● | — | 保持当前位置；不瞄准端点，因此不适用该检查 |
+| `write_zero` | ● | ● | — | 原地重写编码器零点；既不碰止点也不碰标定文件 |
 | `enter_zero_gravity` | ● | ● | — | |
 | `exit_zero_gravity` | — | — | — | **不抛异常**。未使能时是空操作 |
-| 所有 `get_*` 方法（含 `is_moving` / `is_grasped` / `wait_for_ready`） | ● | — | — | `get_info()` 读静态信息，不检查 |
+| `get_state` / `get_position*` / `get_force` / `get_torque` / `get_temperature` / `get_error` / `refresh_status` | ● | — | — | `get_info()` 读静态信息，不检查 |
+| `is_moving` / `is_grasped` / `wait_for_ready` | ● | — | — | |
 | `load_calibration` / `save_calibration` / `load_template` | — | — | — | 纯文件 I/O |
 | `read_param` | ● | — | — | |
 | `teleop_start` | ● | ● | **●** | 会调 `check_ready(config)`；见 [遥操作（主从）](#遥操作主从) |
@@ -782,7 +783,7 @@ calibrate_manual(duration=30.0, settle_time=2.0,
 
 **图例**：● = 必须满足；— = 不需要。
 
-> **不要**把这张表读成"凡是标 — 的都安全"。未标定的 `home()` 会朝占位值 `pos_closed_rad` 去，把你带到没打算去的位置；`set_force` 会在完全不知道端点在哪的情况下，把它恰好所在的当前位置保持住。**`—` 的意思是"没检查"，不是"没影响"。**
+> **不要**把这张表读成"凡是标 — 的都安全"。`—` 的意思是"没检查"，不是"没影响"，其中有一项风险实打实：**`send_mit_frame()` 发的是裸帧**——不查标定、不按标定限位做钳制、不查方向——所以它能把手爪驱过其他所有运动路径都拒绝越过的止点。
 
 ## 异常与错误处理
 
@@ -851,22 +852,32 @@ gripper.motion_config = MotionConfig(speed_mm_s=80.0)
 | `speed_mm_s` | 50.0 | mm/s | `open()` / `close()` 的斜坡速度 |
 | `grasp_speed_mm_s` | 50.0 | mm/s | `grasp()` 闭合阶段的速度 |
 | `force_n` | 20.0 | N | `grasp(force_n=None)` 时的默认力 |
+| `force_ramp_n_s` | 20.0 | N/s | 保力从飞行中的力矩爬到设定值的速率 |
 | `margin` | 0.05 | 比例 | `limit_target()` 停在标定限位内侧多远 |
 | `press_overshoot` | 0.05 | 比例 | `press_target()` 越过限位多远，好让夹口抵在限位上 |
+| `press_safety` | 0.9 | 比例 | `grasp()` 闭合段接触前可花的力矩，按设定力的比例给 |
 | `stall_delta` | 0.0015 | rad | 加窗位置变化低于多少算堵转 |
 | `stall_cycles` | 5 | 周期 | 连续堵转多少个采样算"抓住了" |
 | `stall_ratio` | 0.2 | 比例 | 加窗堵转判据的相对阈值 |
 | `press_zone_mm` | 2.0 | mm | 距限位多近时收窄命令领先量 |
 | `stop_lead_mm` | 0.7 | mm | 收窄后的领先量，它限住了压紧力矩 |
 | `max_lead_mm` | 4.0 | mm | 远离限位时的领先量上限 |
-| `hold_kp` / `hold_kd` | 150.0 / 2.0 | — | 力保持阶段的增益 |
+| `stop_torque_nm` | 0.7 | N·m | 行进段保护：速度跟不上且力矩超过它（约 7 N） |
+| `stop_torque_cycles` | 3 | 周期 | 连续多少个采样过阈才触发保护 |
+| `stop_speed_ratio` | 0.5 | 比例 | 实测速度低于指令速度这个比例才算"没跟上" |
+| `stop_release_s` | 0.2 | s | 触发后失力持续多久 |
 | `hold_interval` | 0.2 | s | 保持阶段多久重读一次位置 |
+| `hold_runaway_rad` | 0.05 | rad | 保持阶段越过闭合限位这么多就中止 |
 | `enable_retries` / `enable_retry_interval` | 3 / 0.2 | — / s | `enable()` 的重试预算 |
 | `frame_interval` | 0.005 | s | MIT 帧周期（200 Hz） |
 | `sample_interval` | 0.05 | s | 控制环采样周期 |
 | `settle_s` | 0.3 | s | 判定运动结束前的稳定时间 |
 | `reach_tol` | 0.02 | rad | 距目标多近算"到达" |
-| `stop_tol` | 0.02 | rad | 距限位多近算"顶住" |
+| `stop_tol` | 0.03 | rad | 距限位多近算"顶住" |
+
+**`hold_kp` / `hold_kd` 已废弃。** 保力帧是纯力矩源（`kp = kd = 0`），位置和速度增益会让力跟着夹口走而不是跟着力走；这两个字段只为让老配置文件还能加载，设了不会生效。
+
+> **注意**：**力矩保护只看行进段，不看压紧段，这是刻意的。** 顶着限位本来就该有力矩，在那里加力矩门槛会让每一次 `open()` / `close()` 都误触发。加窗堵转判据单独对付不了"缓慢让位的硬挡"，`stop_torque_nm` 补的正是这一路：实测速度明显低于指令速度、且力矩连续 `stop_torque_cycles` 个采样过阈，于是失力 `stop_release_s` 并报堵转。**不要靠调高 `stop_torque_nm` 来消掉它**——它响是因为有东西挡住了行程。
 
 **标定探测字段**（`calib_*`）调的是 `zero()` 与 `calibrate()`：`calib_kp` / `calib_kd`（20.0 / 2.0）定探测刚度，`calib_step_rad`（0.05）限住命令领先量，`calib_tau_limit`（2.0 N·m）中止探测，`calib_stall_delta` / `calib_stall_cycles` / `calib_max_iter`（0.0015 / 5 / 200）决定何时判定找到了限位。
 
@@ -916,9 +927,9 @@ with LiteGrip("can0") as slave:
 
 | 方法 | 签名 | 说明 |
 |------|------|------|
-| `teleop_start()` | `teleop_start(mode, *, transport=None, link="zenoh", host=None, port=17448, grip_id="gripA", kp=None, kd=None, align=True, watchdog_s=0.2, dq_max=10.0, rate_hz=50.0) -> dict` | 启动 `"master"` 或 `"slave"`；返回第一份 `teleop_status()` 快照 |
+| `teleop_start()` | `teleop_start(mode, *, transport=None, link="zenoh", host=None, port=17448, grip_id="gripA", kp=None, kd=None, align=True, align_speed_mm_s=50.0, watchdog_s=0.2, dq_max=10.0, torque_limit_nm=0.0, lead_cap_mm=4.0, require_ready=True, ready_timeout_s=10.0, ready_tolerance_mm=2.0, ready_period_s=0.1, rate_hz=50.0) -> dict` | 启动 `"master"` 或 `"slave"`；返回第一份 `teleop_status()` 快照 |
 | `teleop_stop()` | `teleop_stop(timeout=2.0) -> dict` | 停止，并让夹爪保持住。两端都不会失能 |
-| `teleop_status()` | `teleop_status() -> dict` | 会话快照，无会话时为 `{"active": False, "mode": None}` |
+| `teleop_status()` | `teleop_status() -> dict` | 会话快照，无会话时为 `{"active": False, "mode": None}`。含 `frames`、`openness`、`position_mm`、`force_n`、`loop_hz`、`stale`、`rejected`、`send_failed`、`fault`、`matching`，以及与限力相关的 `torque_nm` / `over_torque` / `torque_trips`；握手相关的是 `ready`、`ready_rx`、`ready_pubs`、`ready_timed_out` |
 
 **传输方式：**
 
@@ -943,6 +954,10 @@ bus = InProcTeleopTransport()          # 两端共用同一个实例
 >
 > **注意**：**从端在数据陈旧时保持位置，而不是松掉。** 超过 `watchdog_s` 没有新帧，它停止跟随但继续保持，所以网络断开不会让负载掉落。非有限值的帧会被丢弃并计入 `rejected`。
 
+> **注意**：**主端会一直用增益把夹口握住，直到从端报告已到位。** `require_ready=True`（默认）让主端不会从第一拍就松力，所以从端还在对齐时，夹爪停在你放的位置而不是自己张开。从端进入主端开口的 `ready_tolerance_mm` 之内后即报告就绪，并按 `ready_period_s` 周期重发。从端若始终不报告，也不会把主端卡住：`ready_timeout_s` 到点后主端照样交还，并置上 `ready_timed_out`。
+
+> **注意**：**`torque_limit_nm` 默认关闭（`0.0`）。** 设上它就能限住从端自身的力矩；被顶过该值时，从端就地松力而不是继续顶，`teleop_status()["torque_trips"]` 记录本次会话触发了几次。主端被手推着顶到硬止点，就是这个限力存在的场景。
+
 **可运行示例。** SDK 自带 `examples/teleop.py`，每一端一个进程：
 
 ```bash
@@ -961,9 +976,16 @@ python3 examples/teleop.py --mode slave  --channel can0 --host 192.168.1.20
 | `--kp` / `--kd` | 取标定 | 从端刚度与阻尼 |
 | `--watchdog` / `--dq-max` / `--rate` | 0.2 / 10.0 / 50.0 | 保持超时、前馈速度上限、环频 |
 | `--no-align` | 关 | 跳过对齐到首帧的那一次动作 |
+| `--align-speed` | 50.0 | 那次对齐动作的速度，单位 mm/s |
+| `--lead-cap` | 4.0 | 对齐指令允许领先实测位置多少的上限 |
+| `--torque-limit` | 0.0 | 从端力矩上限 N·m；`0` 表示不设该保护 |
+| `--ready-timeout` | 10.0 | 主端最多握持多久，到点照样交还 |
+| `--no-require-ready` | 关 | 跳过握手：主端从第一拍就松力 |
+| `--fake-leader` | 关 | 用进程内总线上的合成主端驱动从端，不需要第二台夹爪 |
+| `--openness-rate` | 0.3 | 合成主端的扫掠速率，单位"每秒几个满行程" |
 | `--dry-run` | 关 | 打印解析出的方案后退出，不碰硬件 |
 
-> **注意**：SDK 仓库自带**两个**示例脚本：上文介绍的 `examples/teleop.py`，以及 `examples/trajectory.py` —— 后者见[轨迹录制与回放](#轨迹录制与回放)。本手册早前的版本还列了另外十五个（`basic.py`、`cycle_test.py`、`can_diag.py` 等）；那些文件并不存在。**不用去找。**
+> **注意**：SDK 仓库自带**六个**示例脚本：`stroke_test.py`、`grasp_test.py`、`hold_force_test.py`、`zero_closed.py`、上文介绍的 `teleop.py`，以及 `trajectory.py` —— 后者见[轨迹录制与回放](#轨迹录制与回放)。本手册早前的版本还列了另外十五个（`basic.py`、`cycle_test.py`、`can_diag.py` 等）；那些文件并不存在。**不用去找。**
 
 ## 轨迹录制与回放
 
@@ -1052,14 +1074,15 @@ python3 examples/trajectory.py --play pick --repeat 3
 | **生命周期** | `LiteGrip(...)`、`connect()`、`disconnect()`、`__enter__` / `__exit__` |
 | **使能与故障** | `enable()`、`disable()`、`clear_fault()`、`stop()` |
 | **高层动作** | `open()`、`close()`、`grasp()`、`zero()`，以及 `actions` 属性 |
-| **运动** | `home()`、`goto()`、`goto_rad()`、`move_to()`、`move_at_speed()`、`move_at_speed_rad()`、`send_mit_frame()` |
-| **力控** | `set_force()` |
+| **运动** | `home()`、`goto()`、`goto_rad()`、`move_to()`、`move_at_speed()`、`move_at_speed_rad()` |
 | **手动示教** | `enter_zero_gravity()`、`exit_zero_gravity()` |
-| **标定** | `calibrate()`、`calibrate_guided()`、`calibrate_manual()`、`save_calibration()`、`load_calibration()`、`load_template()`、`list_templates()` |
-| **状态** | `get_state()`、`poll()`、`get_position()`、`get_position_rad()`、`get_force()`、`get_torque()`、`get_error()`、`get_temperature()`、`get_info()`、`is_moving()`、`is_grasped()`、`wait_for_ready()` |
+| **标定** | `calibrate()`、`calibrate_guided()`、`calibrate_manual()`、`write_zero()`、`save_calibration()`、`load_calibration()`、`load_template()`、`list_templates()` |
+| **状态** | `get_state()`、`poll()`、`refresh_status()`、`get_position()`、`get_position_rad()`、`get_force()`、`get_torque()`、`get_error()`、`get_temperature()`、`get_info()`、`is_moving()`、`is_grasped()`、`wait_for_ready()` |
 | **遥操作** | `teleop_start()`、`teleop_stop()`、`teleop_status()` |
 | **轨迹** | `record()`、`record_start()`、`record_stop()`、`play()`、`play_start()`、`play_stop()`、`trajectory_status()` |
 | **专家** | `read_param()`、`send_mit_frame()`、`litegrip.can` 子包 |
+
+> **注意**：**没有 `set_force()`。** 它在 v1.0.0 之前就从公开 API 移除了：它只是拿一个力矩把当前位置握住，既不是运动也不是夹取，而调用方使用它的地方本来想的是 `grasp()`。**要带力下压，请调 `grasp(force_n, hold_s)`；它是唯一会施加力的接口。**
 
 **公开导出列表**（`litegrip/__init__.py` 的 `__all__`）：
 
@@ -1070,11 +1093,13 @@ from litegrip import (
     LiteGrip, DEFAULT_CALIB, CALIB_TEMPLATES,
     default_calib_path, list_templates,
     # motion actions
-    MotionConfig, MoveProgress, MoveResult, GraspResult, EnableResult,
-    GripperActions, limit_target, press_target,
+    MotionConfig, MoveProgress, MoveResult, GraspResult, HoldResult,
+    EnableResult, WriteZeroResult, GripperActions,
+    limit_target, press_target, work_limit_target,
+    clamp_to_travel, closing_travel_excursion_rad, force_approach_terms,
     # data models
     GripperState, GripperConfig, GripperInfo, GripperStatus, GripperMode,
-    CalibrationData,
+    CalibrationData, GripperGeometry, STALE_AFTER_S,
     # constants and enums
     GripperParams, UnitConversion, ErrorCode, DefaultParams,
     describe_error, DM_Motor_Type, Control_Mode,
@@ -1088,6 +1113,9 @@ from litegrip import (
     check_ready, clamp_to_calibrated,
     DEFAULT_GRIP_ID, DEFAULT_GRIP_PORT, DEFAULT_DQ_MAX, FRAME_SIZE,
     encode_frame, decode_frame, teleop_topic,
+    DEFAULT_ALIGN_SPEED_MM_S, DEFAULT_LEAD_CAP_MM, DEFAULT_TORQUE_LIMIT_NM,
+    DEFAULT_READY_TIMEOUT_S, DEFAULT_READY_TOLERANCE_MM, DEFAULT_READY_PERIOD_S,
+    READY_FRAME_SIZE, encode_ready_frame, decode_ready_frame, ready_topic,
     # teleoperation — zenoh link (resolved lazily; needs litegrip[zenoh])
     ZenohTeleopTransport, Listener, Connector, LatestSlot,
     # trajectory record and replay
@@ -1138,51 +1166,101 @@ class MyTransport(TeleopTransport):
 
 ## C++ SDK
 
-[`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) 是与 ROS 无关的 C++ SDK，用 CMake 构建。它**只有第一层**：传输、总线持有、`LiteGrip` 对象、标定与 JSON 处理、`SafetyGuard`，以及 `ControlLoop`。
+[`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) 是与 ROS 无关的 C++ SDK：C++17、CMake 3.16 或更新、Linux + SocketCAN，除 C++17 标准库、`pthread` 和 SocketCAN 头文件之外没有第三方依赖。
 
 ```bash
-cmake -B build
-cmake --build build
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
 ctest --test-dir build --output-on-failure
+cmake --install build --prefix "$HOME/.local"
 ```
 
-通过它自己的 CMake 包来 include 和链接：
+`ctest` 不需要硬件、不需要 CAN 接口、也不需要 root。安装会把库、头文件、随包的标定数据，以及 CMake 与 pkg-config 文件写进该前缀下。
+
+在你自己的工程里使用它：
 
 ```cmake
-find_package(litegrip REQUIRED)
-target_link_libraries(your_target PRIVATE litegrip::litegrip)
+find_package(litegrip_cpp REQUIRED)
+target_link_libraries(my_app PRIVATE litegrip_cpp::litegrip_cpp)
 ```
 
-> **注意**：**力与速度相关的功能在 C++ 里没有实现。** `grasp()`、`set_force()` 与 `move_at_speed*()` 都不存在，而 `close(force_n=...)` **收下力参数然后忽略它**。需要自适应抓取就用 Python SDK，或者等后续 C++ 版本。不要指望把 Python 示例移植到 C++ 就能编译通过。
+```bash
+cmake -S . -B build -DCMAKE_PREFIX_PATH="$HOME/.local"
+```
+
+> **不要**把 `~/.local` 写进 `CMAKE_PREFIX_PATH`。CMake 不展开 `~`，它会去找一个就叫 `~` 的目录，然后报 "Could not find a package configuration file"。请用 `$HOME` 或绝对路径。
+
+装好之后也可以走 pkg-config，先设 `PKG_CONFIG_PATH="$HOME/.local/lib/pkgconfig"`：
+
+```bash
+g++ -std=c++17 $(pkg-config --cflags litegrip_cpp) main.cpp \
+    $(pkg-config --libs litegrip_cpp) -o my_app
+```
+
+> **不要**把 `PKG_CONFIG_PATH` 指向 `build/`。那里的 `litegrip_cpp.pc` 是未安装的副本，里面的路径是相对于它最终所在位置写的，报出来的路径并不存在。请用装好的那一份。
+
+**接口面与 Python 一致，只是换成 C++ 的命名。** `grasp()` 与 `move_at_speed*()` 都在，还有 `goto_mm()` / `goto_rad()` / `move_to()`、四个标定入口、带 `is_stale()` 与 `data_age_s` 的 `get_state()`，以及 `send_mit_frame()`。移植时有两处差异要紧：
+
+- **`set_force()` 两个 SDK 都没有。** 它在 v1.0.0 之前就从两边的公开 API 移除了；要出力请用 `grasp()`。
+- **`close()` 收的是速度和可选的进度回调，不是力。** 旧的 `close(kp, kd, force_n, duration)` 签名已经没了；`close(speed_mm_s, *, progress=None)` 就是全部参数，依赖那个力参数的移植要改用 `grasp()`。
+
+C++ SDK 还多一个 Python 没有的上限：`safety.hpp` 里的 `kMaxCommandVelocityCeilingRadS`（1.5 rad/s）。`ControlLoop::max_velocity_rad_s` 默认就是它，且只允许调低，不允许调高。
 
 ## ROS 2（ros2_control 与 MoveIt 2）
 
-**`ros2_control` 硬件接口** —— [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) 提供 `litegrip_ros2_control` 的 `SystemInterface` 插件，直接由 C++ SDK 支撑，链路里没有 Python 守护进程。把它加进控制器配置：
+**`ros2_control` 硬件接口** —— [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) 只发一个包 `litegrip_ros2_control`：一个 ament_cmake 的 C++ `SystemInterface` 插件，直接由 C++ SDK 支撑，链路里既没有 Python 守护进程也没有共享内存。它的描述文件是 `litegrip_ros2_control/urdf/litegrip.ros2_control.xacro`。
 
 ```xml
-<ros2_control name="LiteGripSystem" type="system">
+<ros2_control name="LitegripSystem" type="system">
   <hardware>
-    <plugin>litegrip_ros2_control/LiteGripSystem</plugin>
+    <plugin>litegrip_ros2_control/LitegripSystem</plugin>
+    ...
   </hardware>
-  ...
 </ros2_control>
 ```
 
-**运动规划** —— [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) 提供夹爪的 MoveIt 2 配置，规划组为 `gripper`，命名状态为 `open`（0.087 m）与 `closed`（0.0 m）。
+**运动由一个关节承载。** 插件命令的是 `gripper_opening_joint`；两根手指是它的 mimic，各自没有命令端口，因为真夹爪只有一套传动。这个关节名必须与 description 包的 URDF 一致。
+
+| 参数 | 默认值 | 决定什么 |
+|------|------|------|
+| `channel` / `can_id` / `mst_id` / `canfd_mode` | `can0` / `0x08` / `24`（0x18） / `false` | 插件独占的总线 |
+| `dry_run` / `hardware_enable` | — | 两个开关都打开，才允许发出运动帧 |
+| `max_velocity_rad_s` | `1.5` | 命令速度上限。只能调低，不能调高 |
+| `max_feedback_velocity_rad_s` | `-1.0` | 最坏情况反馈速度界。**`-1.0` 表示"未给出"，插件会拒绝发出任何运动帧** |
+| `torque_limit_nm` | `3.5` | 控制力矩总预算，每帧在 `kp` 与 `kd` 之间分配；3.5 N·m 是 DM-J4310-2EC 的额定值 |
+| `safety_baseline` | `3.5` | 带版本的安全基线。版本未知或文件缺失会让组件**拒绝启动** |
+| `max_position_error_rad` | `-1.0` | 最坏位置误差；`-1` 表示由行程限位推导 |
+| `kp` / `kd` | `20.0` / `0.5` | 增益上界，每帧从预算里重新分配 |
+| `control_rate_hz` / `feedback_timeout_s` / `command_timeout_s` | — | 环频与看门狗计时 |
+| `temperature_limit_c` | — | 线圈与 MOS 温度切断点 |
+| `closed_rad` / `rad_to_mm` / `min_width` / `max_width` | — | 插件钳制到的行程 |
+| `export_diagnostics` | `true` | 把温度、错误码、故障码与反馈新鲜度导出为状态接口。`joint_state_broadcaster` 不会认领它们，激活时控制器管理器会告警——该告警是预期内的。嫌吵就设为 `false` |
+
+> **不要**把 `max_velocity_rad_s` 调到 `1.5` 以上。这个上限依据的是一条有记录的最坏通信假设（模型在约 `1.39 rad/s` 处饱和），不是实测值：除非背后有测量，否则别抬高它。
+
+**运动规划** —— [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) 提供夹爪的 MoveIt 2 配置，规划组为 `gripper`，主关节为 `gripper_opening_joint`，命名状态为 `open`（0.087 m）与 `closed`（0.0 m）。
 
 ```bash
 ros2 launch litegrip_moveit_config demo.launch.py
 ```
 
-> **注意**：**该 demo 默认跑在 dry-run 模式。** 要驱动真机，请传 `dry_run:=false hardware_enable:=true max_feedback_velocity_rad_s:=0.9`。`max_feedback_velocity_rad_s` 的默认值是 `-1.0`，它会**拒绝一切运动**——这是刻意的失效安全行为，不是故障。
+> **注意**：**该 demo 默认跑在 dry run 下**——不打开 CAN 套接字，也不碰电机。要驱动真机，两个开关和一个反馈速度界都得给：
+
+```bash
+ros2 launch litegrip_moveit_config demo.launch.py \
+  dry_run:=false hardware_enable:=true \
+  max_feedback_velocity_rad_s:=0.9
+```
+
+> **注意**：**`max_feedback_velocity_rad_s` 的默认值是 `-1.0`，意思是"未给出"，控制环于是拒绝发出任何运动帧。** 这是刻意的失效安全行为，不是故障。上面那个 `0.9` 只是例子：请在你自己那台上标定它——让它跑一遍真实工况，取反馈速度峰值并留出余量。
 
 URDF 模型在 [`litegrip-description`](https://github.com/nexform-tech/litegrip-description) 里：
 
 ```bash
-ros2 launch litegrip_urdf display.launch.py
+ros2 launch litegrip_description display.launch.py
 ```
 
-加 `stroke:=` 可以覆盖可视化模型用的行程。
+加 `stroke:=` 可以覆盖模型用的手指单侧行程。
 
 > **注意**：**[`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) 还不存在。** 该仓库是个桩，里面只有 CI 配置和一个 README；没有源码、没有包、没有发布。**不要围绕它规划 ROS 1 集成。**
 
@@ -1190,27 +1268,33 @@ ros2 launch litegrip_urdf display.launch.py
 
 | 包 | 入口 | 你能得到什么 |
 |------|------|------|
-| [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | `python3 examples/01_sim_only.py --headless` | `GripperSim`，带 `command_fraction()`、`settle()`、`aperture_mm()`、`finger_force_n()`；以及 sim→real 与 real→sim 的示例 |
+| [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | `python3 examples/01_hello_sim.py --headless` | `GripperSim`，带 `command_fraction()`、`settle()`、`aperture_mm()`、`finger_force_n()`；以及 sim→real 与 real→sim 的示例 |
 | [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | `from litegrip_mujoco import MujocoGripper` | `MujocoGripper`，带 `open`/`close`/`goto`/`grasp`/`get_state`，另有 `MirrorMode` 与 `DualGripper` 做真机与仿真的镜像 |
 | [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | `ISAAC_SIM_PATH=... ./run_gripper.sh` | 一个 Isaac Sim 节点，订阅 `/gripper/joint_traj`，以及一条连到真机 CAN 的桥 |
 
-三者中 `litegrip-mujoco` 最完整，从 `01_hello_sim.py` 到 `05_dual_control.py` 有五个编号示例。
+三者随包的五套编号示例是同一套，从 `01_hello_sim.py` 到 `05_dual_control.py`。
 
-> **注意**：**三个仿真包都没发布到 PyPI**，尽管它们的 README 里写的是相反的话。请和 SDK 一样从检出安装。
+**两个 Python 仿真环境用的都是 URDF 包里的那套模型，不是另建一套。** PyBullet 随包带上 `litegrip-description` 里的上游 ROS 2 xacro，并在加载时做归一化（重写网格路径、剥掉无质量根连杆）；MuJoCo 的 MJCF 也建立在那三个 STL 网格之上。
 
-> **注意**：**Isaac Sim 桥的真机标定是占位值。** 仿真模型与 sim 节点能用，但用来把真机开口映射到模型上的 `OPEN_MM` 没有实测过。把那条桥给出的 sim-to-real 开口值只当作参考。
+> **注意**：**三个仿真包都没发布到 PyPI**，尽管它们的 README 里写的是相反的话——`pip install litegrip-mujoco` 返回 404（2026-10-15 核对）。请和 SDK 一样从检出安装。
+
+> **注意**：**Isaac Sim 桥通过 `OPEN_MM` 常量把真机开口映射到模型上。** 该常量取 **`110.0`** —— SDK 毫米口径下的全开开口。把它设成 `OPEN_MM = None` 才会退回推算占位值 `OPEN_MM_CALIB = 120.06` 并打印告警；随货的桥用的是 `110.0`。
 
 ## 上位机（litegrip-studio）
 
-[`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) 是操作台：一个 PyQt5 应用，用来驱动、标定和监视夹爪，带绘图页与自检模式。
+[`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) 是操作台：一个 PyQt5 应用，用来驱动、标定和监视夹爪，带绘图页与自检模式。它需要 Python 3.10 或更新，外加 `PyQt5`、`pyqtgraph` 与 `numpy`。
 
 ```bash
-./run_litegrip_studio.sh sim        # against the simulated backend
-./run_litegrip_studio.sh gui        # against real hardware
-./run_litegrip_studio.sh selftest   # non-interactive self-check
+./run_litegrip_studio.sh sim        # the console, against the built-in simulated gripper
+./run_litegrip_studio.sh gui        # the console, against a real gripper on can0
+./run_litegrip_studio.sh selftest   # self-check: no Qt, no hardware
+./run_litegrip_studio.sh test       # the test suite
+./run_litegrip_studio.sh build      # one-file executable in dist/
 ```
 
-启动脚本最终分发到 `python -m litegrip_studio --backend sim|real`。`PYTHON_BIN` 可覆盖解释器，`LITEGRIP_SDK_PATH` 可覆盖 SDK 位置。`./build.sh` 会在**你的机器上**打出单文件可执行程序；它不作为发布附件发布。
+启动脚本最终分发到 `python -m litegrip_studio --backend sim|real`；`--backend` 默认为 `real`，`-h` 会列出全部子命令与选项。`PYTHON_BIN` 指定启动脚本与打包脚本用的解释器，`LITEGRIP_SDK_PATH` 则指向一份 SDK 检出——检出根目录或它的 `src/`——代替随包内置的那份。
+
+**SDK 内置在 `src/litegrip` 下**，钉在某个提交上，所以克隆下来什么都不用装就能跑。`./run_litegrip_studio.sh build` 会在**你的机器上**打出单文件可执行程序，放在 `dist/`；它不作为发布附件发布。
 
 > **注意**：**这是给"不想写代码的人"用的那个应用。** 连接、标定、运动与记录，一行 Python 都不用写。凡是要脚本化的，仍然走 SDK。
 
@@ -1221,31 +1305,19 @@ ros2 launch litegrip_urdf display.launch.py
 | 组件 | 状态 |
 |------|------|
 | [`litegrip-python`](https://github.com/nexform-tech/litegrip-python) | 完整且在维护。主力路径 |
-| [`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) | 只有第一层。没有 `grasp()`、没有 `set_force()`、没有 `move_at_speed*()`；`close(force_n=...)` 忽略力参数 |
+| [`litegrip-cpp`](https://github.com/nexform-tech/litegrip-cpp) | 覆盖运动、抓取、标定与总线。没有 `set_force()`——两个 SDK 都已移除；`close()` 收的是速度 |
 | [`litegrip-ros1`](https://github.com/nexform-tech/litegrip-ros1) | **空桩。** 没有源码、没有包、没有发布 |
 | [`litegrip-ros2`](https://github.com/nexform-tech/litegrip-ros2) | 可用；入口是 `ros2_control` 插件 |
 | [`litegrip-moveit2`](https://github.com/nexform-tech/litegrip-moveit2) | 可用；默认 dry-run，运动限位失效安全 |
 | [`litegrip-description`](https://github.com/nexform-tech/litegrip-description) | 可视化与 `ros2_control` 已验证。**`effort` 与 `velocity` 是 SolidWorks 的占位默认值**，Gazebo 的 launch 从未执行过 |
-| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | 完整，示例最丰富 |
+| [`litegrip-mujoco`](https://github.com/nexform-tech/litegrip-mujoco) | 完整 |
 | [`litegrip-pybullet`](https://github.com/nexform-tech/litegrip-pybullet) | 完整 |
-| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | 仿真侧可用；真机 `OPEN_MM` 标定是占位值 |
+| [`litegrip-isaacsim`](https://github.com/nexform-tech/litegrip-isaacsim) | 仿真侧可用；`OPEN_MM = 110.0` 负责把真机开口映射到模型 |
 | [`litegrip-studio`](https://github.com/nexform-tech/litegrip-studio) | 完整且在维护 |
 
 **没有任何发布附带二进制。** 每个仓库发布的都是只有 tag、没有附件的 release，而且**没有任何包在 PyPI 上**。一切都从源码检出安装。
 
-## 报告与验证状态
-
-本章记录的是仓库 `README.md` 中所标版本时点的 SDK。接口会变；当某个调用的签名与预期不符时，请先查 SDK 自己的 [README](https://github.com/nexform-tech/litegrip-python#readme) 与 `py.typed` 标注，再怀疑手册。
-
-| 内容 | 状态 |
-|------|------|
-| 接口名、签名、默认值与数据类字段 | **已核对** SDK 源码，逐方法比对 |
-| CAN 协议章 | **已核对** 驱动与 SDK 编解码器；示例逐字节可复现 |
-| [跑起来](#5-跑起来让夹爪动一下)及其后的运动示例 | **未在硬件上执行。** 按 SDK 源码及其 README 写成；打印值是示例 |
-| 0.4 s 通信超时、MIT 量化范围与 `grasp_torque_threshold` | **未实测。** 它们是等台架实测的占位值 |
-| 仿真与 ROS 入口 | **未执行。** 取自各仓库的 README 与文件树 |
-
-> **不要**把本手册里的示例当作已测过程序。任何会让夹爪动的代码，都必须在你自己的硬件上、以降低后的力与速度验证过，才能靠近工件或人。
+> **任何会让夹爪动的代码，都请先在你自己的硬件上、以降低后的力与速度验证过**，再让它靠近工件或人。
 
 ## 常见问题与技术支持
 
@@ -1259,11 +1331,11 @@ ros2 launch litegrip_urdf display.launch.py
 
 问：为什么我监听总线什么都收不到？答：**反馈是问询式的** —— 驱动器只在收到主机发来的帧之后才回帧。**被动监听永远收不到任何帧**，必须先发帧。
 
-问：连接之后要做什么？答：**先 `load_calibration()`，再 `enable()`。** `connect()` **不会**自动载入标定文件；未载入时 `config` 还是占位值（`rad_to_mm=105.26`），`config.calibrated` 为 `False`。哪些调用会因此拒绝执行、哪些会静默照跑，见 [加载标定](#4-加载标定)。
+问：连接之后要做什么？答：**先 `load_calibration()`，再 `enable()`。** `connect()` **不会**自动载入标定文件；未载入时 `config` 还是占位值（`rad_to_mm=75.44`），`config.calibrated` 为 `False`。哪些调用会因此拒绝执行、哪些会静默照跑，见 [加载标定](#4-加载标定)。
 
 问：`open()` 抛 `CommandError` 说配置尚未标定，是哪里不对？答：标定没加载。`open()`、`close()`、`grasp()` 都要过标定检查，所以它们宁可直接拒绝，也不去猜方向。请先调 `load_calibration()`（或跑一次 `zero()`）。
 
-问：`goto()` 去的位置不对，却不报任何错，为什么？答：中层接口（`goto`、`goto_rad`、`move_to`、`move_at_speed*`、`home`）**不检查 `calibrated`**，与高层动作不同。未加载标定时，它们用占位系数 `rad_to_mm = 105.26` 换算毫米。直接使用这些接口时，请自己检查 `config.calibrated`。
+问：`goto()` 去的位置不对，却不报任何错，为什么？答：它本该报错。自 v1.1.0 起，每一个定位接口——`goto`、`goto_rad`、`move_to`、`move_at_speed*` 与 `home`——都走同一条斜坡，而斜坡对未标定的配置抛 `CommandError`。如果它动了却没吭声，那说明标定**已经**加载了，是你的预期不对：请把 `config.rad_to_mm` 和标定文件里的值对一下，并记住超出标定端点的目标会被静默钳制。
 
 问：函数返回了 `True`，是不是就成功了？答：看是哪个函数。`enable()` 的 `True` 有反馈帧背书（且失败时会抛 `HardwareError`），可信度高；`disable()` 的 `True` **只代表命令已发出，未获证实**；运动接口的返回值只表示"这一串帧发出去了"，**不表示机构已经到位**。判断是否到位要读 `get_state()`。
 
@@ -1273,9 +1345,9 @@ ros2 launch litegrip_urdf display.launch.py
 
 问：我想让夹爪"目标越界就报错"，怎么做？答：`goto_rad()` / `move_at_speed_rad()` 对越界目标是**静默钳位**，不抛异常。要拒绝就自己在调用前判断：读 `config.pos_closed_rad` / `pos_open_rad`，与目标值比较，再决定发不发。
 
-问：为什么 `goto(60.0)` 到不了 60 mm？答：三种可能：（1）标定没加载，占位系数会把每个目标换算成错误的角度（见 [配置对象](#配置对象)）；（2）目标在标定端点之外，被钳到端点；（3）`duration` 太短，帧序列结束时机构还在路上。
+问：为什么 `goto(60.0)` 到不了 60 mm？答：三种可能：（1）路上堵转了，此时 `MoveResult.ok` 为 `False`，它返回的 `state` 会告诉你实际停在哪里；（2）目标在标定端点之外，被钳到端点；（3）`duration` 太短，帧序列结束时机构还在路上。
 
-问：为什么 `close()` 不按我设的力停住？答：`close()` 根本没有力参数。只有 `grasp()` 与 `set_force()` 收 `force_n`，而且即便在那儿，它也只是换算成 `force_n × 0.1 N·m` 的前馈力矩；**不做任何校验，也不保证夹持力等于设定值**。真实夹持力取决于对象刚度、位置与 `kp`。
+问：为什么 `close()` 不按我设的力停住？答：`close()` 根本没有力参数，也从来没有过能生效的力参数。只有 `grasp()` 收 `force_n`，在那里它被换算成 `force_n × 0.1 N·m` 的前馈力矩，且不带位置和速度增益；**不做任何校验，也不保证夹持力等于设定值**，因为真实夹持力取决于对象刚度与夹口最终落在哪里。在某个位置上施加力正是 `set_force()` 当年做的事——它已被移除，替代品是 `grasp()`。
 
 问：`grasp()` 返回 `result.stalled == True`，是夹到东西了吗？答：**不一定。** 堵转判据是位置式的 —— 加窗位置变化连续 `stall_cycles` 个周期低于 `stall_delta`。夹住物体和走到行程端点对它来说完全一样，所以**光看 `stalled` 分不出来**。请读 `get_position()`：空夹停在闭合端点，夹到物体则停在端点之前。
 
@@ -1291,13 +1363,13 @@ ros2 launch litegrip_urdf display.launch.py
 
 问：标定时撞到硬限位了为什么还一直顶？答：`zero()`、`calibrate()` 与 `calibrate_guided()` 都是**靠电机堵转检测限位**：朝一个方向步进到位置增量连续多个周期低于阈值，中途不会自行停止。运行前请确认机械硬限位受得住这股力，并优先用 `calibrate_manual()`。
 
-问：标出来的 `rad_to_mm` 不对（毫米读数偏大约 38%）？答：查 `max_stroke_mm`。它的默认值是占位值 `120.0`，而本机实测行程是 `87.000 mm`；每个标定入口都用 `config.max_stroke_mm` 作分子（`rad_to_mm = max_stroke_mm ÷ 实测 rad 跨度`），所以按默认标定会把一个偏大 1.38 倍的刻度写进标定文件。**标定前请先用卡尺量出全开开口，写进 `max_stroke_mm`。**
+问：标出来的 `rad_to_mm` 不对？答：查 `max_stroke_mm`。它的默认值是 `85.0`，也就是出厂机型的手指行程；每个标定入口都用 `max_stroke_mm + STOP_INSET_MM` 作刻度分子（`rad_to_mm = （max_stroke_mm + 1.0）÷ 实测 rad 跨度`）。重新标定之前，请把它改成**你自己那台**的手指行程——用卡尺从闭合止点量起；这是标定文件唯一不携带的逐台测量值。有一个错值要避开：早已作废的 `120.0` 占位值不属于这个系列的任何一个机型。
 
-问：标定文件写在哪儿？答：不带参数的 `save_calibration()` 写 `~/.litegrip/<channel>_calibration.json`，并**返回它写入的路径** —— 一个通道一个文件，所以同一台机器上的两台夹爪不会互相覆盖。`~/.litegrip/litegrip_calibration.json` 是旧路径；`load_calibration()` 仍会把它当兜底读，但已经没有任何东西会写它了。
+问：标定文件写在哪儿？答：不带参数的 `save_calibration()` 写 `~/.litegrip/<channel>_calibration.json`，并**返回它写入的路径** —— 一个通道一个文件，所以同一台机器上的两台夹爪不会互相覆盖。**这个文件和旧的 `~/.litegrip/litegrip_calibration.json` 都不会被自动读回**：要用 `path=` 点名，或把 `LITEGRIP_CALIB` 指向它。已经没有任何东西会写旧名字了。
 
 问：为什么 `home()` 不回闭合端？答：它应该回。`home()` 发的是 `self._config.pos_closed_rad` —— **本实例标定出的闭合限位**，不是模块常量 —— 所以常规安装回闭合端，反装也回正确的那一端。如果它去了错的那端，说明标定没加载，`pos_closed_rad` 还是占位值。（本手册早前的版本声称 `home()` 用的是常量 `0.0 rad`、会撞向张开侧。那是错的；请改查 `config.calibrated`。）
 
-问：位置读数和卡尺量出来的差 1.5 mm？答：正常。SDK 的 mm 零点在**机械全闭处**，而该处两指之间还有 1.508 mm 间隙。卡尺读数 ≈ `get_position() + 1.508`（该式在闭合端精确；在张开端高估约 1.5 mm；精确关系见 [单位与换算](#单位与换算)）。
+问：位置读数和卡尺量出来对不上？答：本该对上 —— `position_mm` **就是**两指指尖之间的开口，零点在机械全闭处。若两者差一个固定百分比，是 `rad_to_mm` 刻度错了；若差一个固定偏移量，是你量取的基准面不同。读数约定见 [单位与换算](#单位与换算)。
 
 问：`tau` 读数总比我设的略小？答：正常。MIT 帧用的是**截断式**编码（向下取整），所以量化误差是单边的：`解码值 − 命令值` 落在区间 `(−1 LSB, 0]`，**永远不会大于**你设的值。
 
@@ -1430,7 +1502,7 @@ tau_out = kp · (q_target − q_actual) + kd · (dq_target − dq_actual) + tau
 7F FF 7F F0 00 00 07 FF
 ```
 
-> **零力矩帧里为什么还要有位置字段？** MIT 帧的五个字段是固定长度的，`q` 字段**必须**存在。由于 `kp = kd = 0`，力矩公式中的两项恒为零，**`q` 的取值对输出没有任何影响** —— 它只是一个占位符。SDK 在发零力矩帧时把 `q` 固定填 `0`（即码值 32767 = `0x7FFF`），因此线上字节里不会出现任何"目标位置"含义的值。**这是一条固定取值，不是一个"安全区填充"算法。**
+> **零力矩帧里为什么还要有位置字段？** MIT 帧的五个字段是固定长度的，`q` 字段**必须**存在。由于 `kp = kd = 0`，力矩公式中的两项恒为零，**`q` 的取值对输出没有任何影响** —— 无论填什么都不出力。SDK 在发零力矩帧时把 `q` 填成**当前实测位置**，因此该字段带的是机构确实所在的位置，下游也不会把它误当成一次定位指令。**这是实时位置，不是一个"安全区填充"算法。**
 
 **零力矩帧的真实输出（重要）：**
 
@@ -1538,7 +1610,7 @@ tau_out = kp · (q_target − q_actual) + kd · (dq_target − dq_actual) + tau
 >
 > **注意**：**RID 21 / 22 / 23（`PMAX` / `VMAX` / `TMAX`）是映射范围，不是保护阈值。** 它们定义 MIT 帧字段的量程，**不能**当作位置、速度、力矩的安全上限。**真正的速度保护在 RID 6（`MAX_SPD`）。**
 >
-> **注意**：本节 SDK 用的量程是**硬编码**的 `±12.5 / ±30 / ±10`（见 `litegrip/can/protocol.py`），**代码从不回读 RID 21/22/23**，因此无法断言它与本台电机寄存器的实际取值一致（用 `scripts/read_driver_limits.py` 回读核对）。
+> **注意**：本节 SDK 用的量程是**硬编码**的 `±12.5 / ±30 / ±10`（见 `litegrip/can/protocol.py`），**代码从不回读 RID 21/22/23**，因此无法断言它与本台电机寄存器的实际取值一致。
 
 **示例帧：**
 
@@ -1603,8 +1675,8 @@ tau_out = kp · (q_target − q_actual) + kd · (dq_target − dq_actual) + tau
 
 | 项目 | 数值 | 说明 |
 |--------------------------|----------------|----------------------------------------------------------------|
-| 使能等待窗口 | **2.0 s** | SDK 在此窗口内等待**命令发出之后**的反馈帧，判据是 `ERR ∈ {0x0, 0x1}` |
-| 使能重试次数 | 5 次 | 每次重新走"失能 → MIT → 使能 → 等反馈"；全部失败抛 `HardwareError` |
+| 使能成功判据 | `ERR == 0x1` | 必须在**命令发出之后**回读到状态帧；真实故障（`ERR ∉ {0x0, 0x1}`）会在下一次尝试前先清除 |
+| 使能重试次数 | 3 次 | 每次重新走"失能 → MIT → 使能 → 回读状态帧"；全部失败时 `enable()` 返回 `EnableResult(ok=False)` |
 | 失能验证 | **无** | SDK 发完失能帧就返回，不等待反馈证实 |
 | 状态刷新等待 | 0.05 s | `get_state(wait=True)` 等待一帧反馈的时间 |
 | 参数读取等待 | 0.5 s | `read_param()` 的默认超时 |
@@ -1730,7 +1802,7 @@ sudo ip link add dev vcan0 type vcan
 sudo ip link set up vcan0
 ```
 
-> 虚拟总线上没有真实电机，因此**使能步骤会超时**（SDK 等待 2.0 s、重试 5 次后抛 `HardwareError`），这是**预期行为**。
+> 虚拟总线上没有真实电机，因此**使能步骤会失败**（永远不会有状态帧报 `ERR == 0x1`，`enable()` 重试 3 次后返回 `EnableResult(ok=False)`），这是**预期行为**。
 
 ## 不经 SDK 的总线自检
 
@@ -1784,7 +1856,7 @@ for i in $(seq 5); do cansend can0 08#FFFFFFFFFFFFFFFC; sleep 0.01; done
 | 反馈的 `tau` 略小于预期 | 截断量化 | **正常现象**，见 [CAN 通信协议](#can-通信协议) |
 | 把 `OC_Value` 的 0.8 当成 0.8 A | 它是比例值，表示 80% | 见 [参数帧与寄存器](#参数帧与寄存器) |
 | 多台设备互相干扰 | 多主站并发 | **保证单主站**，软件层互斥 |
-| 位置读数比卡尺小 1.5 mm | SDK 零点在闭合机械极限 | 卡尺读数 ≈ `get_position() + 1.508` |
+| 位置读数与卡尺差一个固定百分比 | `rad_to_mm` 刻度错了 | 重新标定，或检查 `max_stroke_mm` |
 
 **无法自行解决时**，请记录以下信息后联系我们：产品型号与序列号、SDK 版本、Python 版本、操作系统与内核版本、CAN 接口配置、完整异常信息与堆栈。
 
