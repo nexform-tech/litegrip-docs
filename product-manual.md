@@ -63,7 +63,7 @@ The units of physical quantities used in this document and in the SDK are as fol
 
 > **Unless stated otherwise, "mm" in this document always means "actual aperture"** (the true distance between the inner faces of the two fingers), because that is the quantity a caliper can measure directly.
 >
-> **The position the SDK returns is `p` from the table above, and `p` is the actual aperture** — the distance between the inner faces of the two fingers. It is not a motor angle and not a per-finger displacement. A move that ends by pressing onto the open mechanical stop reports about 1 mm above the aperture, because the SDK's position scale is calibrated with the stop inset (`STOP_INSET_MM = 1.0`). For the full reading convention, see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) in the Software Development Manual.
+> **The position the SDK returns is `p` from the table above, and `p` is the actual aperture** — the distance between the inner faces of the two fingers. It is not a motor angle and not a per-finger displacement. A move that ends by pressing onto the open mechanical stop (that is, `open()` with no `work_stroke_mm` configured) reports about 1 mm above the aperture, because the SDK's position scale is calibrated with the stop inset (`STOP_INSET_MM = 1.0`). For the full reading convention, see [Units and conversion](soft-gripper-development-manual.md#units-and-conversion) in the Software Development Manual.
 >
 > **rad values are not a product specification.** The assembly phase between the motor and the gripper mechanism **differs from unit to unit**, so the rad endpoints differ on every gripper. Always use **the calibration file shipped with that unit** — this manual states no rad numbers for any sample unit.
 
@@ -126,7 +126,7 @@ A risk assessment must consider every potential contact between a person and the
 
 Through the risk assessment, users must judge whether the relevant hazards constitute an unacceptable risk and take the corresponding measures. The gripper is not suitable for people who lack the guidance of a qualified professional or who do not have full civil capacity.
 
-> **Note**: **The shipped SDK does not check for out-of-range targets.** It only **silently clamps** a target beyond a calibrated endpoint to that endpoint (neither raises an error nor reports one); it **does not** reject out-of-range commands, **does not** latch a fault, and **does not** validate force parameters. During operation, a command may stay in range while the actual position goes out of range — inertia, control cycle delay, communication delay, and encoder error all make the actual position exceed the expected one. **The integrator must implement limiting on the host computer; the hardware emergency stop and the mechanical hard stop are the last line of defense.**
+> **Note**: **The shipped SDK does not reject an out-of-range position target.** It only **silently clamps** a target beyond a calibrated endpoint to that endpoint (neither raises an error nor reports one); it **does not** latch a fault and **does not** validate the numeric range of force parameters. Non-finite values and a feed-forward torque beyond the motor model's frame range are refused. During operation, a command may stay in range while the actual position goes out of range — inertia, control cycle delay, communication delay, and encoder error all make the actual position exceed the expected one. **The integrator must implement limiting on the host computer; the hardware emergency stop and the mechanical hard stop are the last line of defense.**
 
 # Technical specifications
 
@@ -437,9 +437,9 @@ For the interface configuration commands, the SDK installation, the example scri
 
 ### Basic motions
 
-**Grasping**: the gripper closes until it **contacts the object and is obstructed**, which is taken as a successful grip, and it holds position. The criterion is whether the fingers stop moving, so **gripping an object and reaching the stroke endpoint both count as a successful grip**; read the position to tell the two apart.
+**Grasping**: `grasp()` closes until it **contacts the object and is obstructed**, and then holds a force. The criterion is whether the fingers stop moving, so for `grasp()` **gripping an object and reaching the stroke endpoint both count as a successful grasp**; read the position to tell the two apart. `close()` is different: it presses onto the closed-side stop, and a stall halfway (an object) reports `ok=False`.
 
-> **Note**: **The gripping force parameter is not validated at all.** The shipped SDK converts a force value into a feedforward torque using a coefficient that has never been calibrated against a real load. Before force calibration is complete, **do not rely on the force parameter**; for a pure position grasp, call `close()`, which takes no force argument at all — the gripper closes until the object obstructs it.
+> **Note**: **The gripping force parameter's numeric range is not validated.** The shipped SDK converts a force value into a feedforward torque using a coefficient that has never been calibrated against a real load. Before force calibration is complete, **do not rely on the force parameter**; for a pure position grasp, call `close()`, which takes no force argument at all — the gripper closes until the object obstructs it.
 
 **Manual guidance**: to hold the gripper at a new position, put it in **zero gravity mode**; the motor then outputs no torque and you can push the fingers by hand. Leaving the mode holds the position at the moment you exit it.
 
@@ -528,7 +528,7 @@ Q: How heavy an object can it grip? A: **It depends on your workpiece, not on th
 
 Q: How large is the gripping force? A: **It is not published.** `grasp(force_n=...)` accepts a value, but the SDK converts it through an uncalibrated nominal coefficient, so it is a qualitative reference only — larger means more force — and must not be used as a calibrated gripping force. See [Grip and load capacity](#grip-and-load-capacity).
 
-Q: Can I set the gripping force? A: **`grasp(force_n=...)` takes a force, but entering one does not make the force accurate.** The shipped SDK converts the value through a **nominal coefficient** into a feedforward torque and sends it directly, **performing no validation and never refusing to execute**. That coefficient has never been calibrated against a real load, so the number is only a qualitative reference (larger means more force) and **must not be used as a calibrated gripping force**. For a position grasp that stops on contact, **pass no force at all**: `close()` has no force parameter, and it closes until something obstructs it — which meets most grasping needs.
+Q: Can I set the gripping force? A: **`grasp(force_n=...)` takes a force, but entering one does not make the force accurate.** The shipped SDK converts the value through a **nominal coefficient** into a feedforward torque and sends it directly, **without validating its numeric range** (only a non-finite value is refused). That coefficient has never been calibrated against a real load, so the number is only a qualitative reference (larger means more force) and **must not be used as a calibrated gripping force**. For a position grasp that stops on contact, **pass no force at all**: `close()` has no force parameter, and it closes until something obstructs it — which meets most grasping needs.
 
 Q: Is Windows supported? A: **No.** The development kit currently supports Linux only.
 
