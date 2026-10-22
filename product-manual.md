@@ -18,6 +18,7 @@ This manual covers the product's appearance, technical specifications, safety no
   - [Motion performance](#motion-performance)
   - [Electrical specifications](#electrical-specifications)
   - [Mechanical and environment](#mechanical-and-environment)
+  - [Dimensions and mounting interface](#dimensions-and-mounting-interface)
   - [Selection guidance](#selection-guidance)
 - [Electrical interface](#electrical-interface)
   - [Electrical safety](#electrical-safety)
@@ -135,7 +136,7 @@ Through the risk assessment, users must judge whether the relevant hazards const
 | Per-finger stroke | 42.500 mm (effective stroke ÷ 2) |
 | Working stroke | 0 ~ 85.000 mm, the entire stroke is usable |
 | Power-off self-locking | None (holding torque is lost when power is removed) |
-| Total mass | 0.483 kg (includes motor, cable, fingertips, and mounting parts) |
+| Total mass | 0.537 kg (gripper assembly) / 0.785 kg (holder assembly) |
 
 ## Stroke and position
 
@@ -179,14 +180,51 @@ The factory calibration sets `work_stroke_mm` to 80.0 mm, so the default `open()
 
 | Parameter name | Value |
 |--------|------|
-| Overall dimensions (length × width × height) | 150 × 85 × 170 mm |
-| Fingertip dimensions (length × width × thickness) | 84 × 60 × 22 mm |
 | Coil overtemperature protection point | 100 °C |
 | Driver board overtemperature protection point | 120 °C |
 
-> **Note**: This manual does not provide the mounting interface dimensions or the cable and connector specifications. If you need to mount the gripper on a robot arm end or a custom bracket, or need cable data, contact us.
-
 > **Note**: The IP rating and CE, RoHS and REACH are not certified. Contact us before using the gripper in an environment with dust, moisture, or cutting fluid.
+
+## Dimensions and mounting interface
+
+The external dimensions are taken from the two assembly drawings. The assemblies share the 148 mm width and the same mounting holes; they differ mainly in the drive end, the fingers, and the mass.
+
+### Gripper assembly
+
+| Item | Dimension |
+|------|------|
+| Overall dimensions (width × depth × height) | 148 × 65.5 × 176.5 mm |
+| Motor diameter | Ø57 mm |
+| Drive section height | 60 mm |
+| Mounting flange section height | 30 mm |
+| Body depth | 61 mm |
+| Finger length | 86 mm |
+| Aperture in the drawing | 85 mm |
+| Mass | 0.537 kg |
+
+### Holder assembly
+
+| Item | Dimension |
+|------|------|
+| Overall dimensions (width × depth × height) | 148 × 101.6 × 169 mm |
+| Motor diameter | Ø53 mm |
+| Rear drive section height | 63.2 mm |
+| Body depth | 71.6 mm |
+| Side finger assembly length | 134 mm |
+| Centre finger width | 26 mm |
+| Mass | 0.785 kg |
+
+### Mounting interface
+
+| Item | Specification |
+|------|------|
+| Mounting holes | 2 × M3 threaded holes |
+| Hole spacing | 15 mm |
+| Applies to | Gripper assembly, holder assembly |
+
+> **Note**: These are nominal dimensions from the assembly drawings and exclude cables and connectors. The 3D model and the drawings shipped with the product are the authority; contact us for cable and connector specifications.
+
+> **Note**: The holder assembly has a different motor diameter from the gripper assembly, so the electrical and motion specifications in this manual do not apply to it unchanged. Contact us before use.
 
 ## Selection guidance
 
@@ -269,7 +307,7 @@ LiteGrip consists of the gripper body, two parallel-motion fingers, the fingerti
 |------|------|
 | Gripper body | Contains the drive motor, transmission, and guide rail |
 | Finger (left / right) | Moves in parallel along the guide rail; per-finger stroke 42.500 mm |
-| Fingertip | The part that contacts the workpiece directly; dimensions 84 × 60 × 22 mm |
+| Fingertip | The part that contacts the workpiece directly; dimensions are in "Dimensions and mounting interface" |
 
 ## Mounting
 
@@ -281,7 +319,7 @@ LiteGrip consists of the gripper body, two parallel-motion fingers, the fingerti
 
 > **Note**: The gripper has a mechanical stop in the opening direction and none in the closing direction. The fingers meet directly when closing; do not expect a closing motion to press a part onto a locating face. To keep the gripper holding, use force control rather than driving a position command to the limit.
 
-> **Note**: You must cut the 24 V supply before installation or removal. Contact us for the mounting interface dimensions.
+> **Note**: You must cut the 24 V supply before installation or removal. The mounting holes are in "Dimensions and mounting interface"; contact us for cable and connector specifications.
 
 ## Wiring
 
