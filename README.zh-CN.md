@@ -11,7 +11,7 @@ LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量�
 | 手册 | 读者 | 内容 |
 | --- | --- | --- |
 | [产品手册](product-manual-zh.md) | 使用与安装人员 | 规格、电气接口、安装、维护、故障排查 |
-| [软件开发手册](soft-gripper-development-manual-zh.md) | 集成工程师 | SDK 安装、接口用法与前置条件、CAN 通信协议 |
+| [软件开发手册](soft-gripper-development-manual-zh.md) | 集成工程师 | SDK 安装与调用、生态集成、精简的 CAN 协议附录 |
 
 说明文档包含如下内容：
 
