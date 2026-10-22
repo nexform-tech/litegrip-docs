@@ -202,6 +202,8 @@ The external dimensions are taken from the two assembly drawings. The assemblies
 | Aperture in the drawing | 85 mm |
 | Mass | 0.537 kg |
 
+[Dimensioned drawing: gripper assembly (PDF)](drawings/gripper-assembly.pdf)
+
 ### Holder assembly
 
 | Item | Dimension |
@@ -214,6 +216,8 @@ The external dimensions are taken from the two assembly drawings. The assemblies
 | Centre finger width | 26 mm |
 | Mass | 0.785 kg |
 
+[Dimensioned drawing: holder assembly (PDF)](drawings/holder-assembly.pdf)
+
 ### Mounting interface
 
 | Item | Specification |
@@ -222,7 +226,7 @@ The external dimensions are taken from the two assembly drawings. The assemblies
 | Hole spacing | 15 mm |
 | Applies to | Gripper assembly, holder assembly |
 
-> **Note**: These are nominal dimensions from the assembly drawings and exclude cables and connectors. The 3D model and the drawings shipped with the product are the authority; contact us for cable and connector specifications.
+> **Note**: These are nominal dimensions from the linked assembly drawings and exclude cables and connectors. The 3D model and the drawings are the authority; contact us for cable and connector specifications.
 
 > **Note**: The holder assembly has a different motor diameter from the gripper assembly, so the electrical and motion specifications in this manual do not apply to it unchanged. Contact us before use.
 
