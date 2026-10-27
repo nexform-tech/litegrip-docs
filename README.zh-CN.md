@@ -79,7 +79,7 @@ ros2 launch litegrip_description display.launch.py
 
 ## 仓库规范
 
-本仓库遵循 NEXFORM ROBOTICS 的共享仓库规范：代理操作规则见 [AGENTS.md](AGENTS.md)；提交信息使用 Conventional Commits；每次合并到 `main` 由 semantic-release 自动发布版本。
+本仓库遵循 NEXFORM ROBOTICS 的共享仓库规范：代理操作规则见 [`.nexform-standards.json`](.nexform-standards.json)；提交信息使用 Conventional Commits；每次合并到 `main` 由 semantic-release 自动发布版本。
 
 ## 许可证
 
