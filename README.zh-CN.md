@@ -53,13 +53,15 @@ python3 -m pip install .
 | 项目 | 取值 |
 | --- | --- |
 | 机器人描述 | `litegrip_description/urdf/litegrip_description.urdf.xacro` —— 唯一事实来源 |
-| 连杆 | `base_footprint`（根）、`base_link`、`gripper_slider_link1`（右）、`gripper_slider_link2`（左） |
-| 关节 | `gripper_slide_joint_right`（`+X`）、`gripper_slide_joint_left`（`-X`），均为移动副 |
+| 连杆 | `base_footprint`（根）、`base_link`、`gripper_opening_link`（总控）、`gripper_slider_link1`（右）、`gripper_slider_link2`（左） |
+| 关节 | `gripper_opening_joint`（总控，`+X`，移动副）；`gripper_slide_joint_right`（`+X`）与 `gripper_slide_joint_left`（`-X`）是它的 `<mimic>` 跟随关节 |
 | 网格 | 三个 STL 文件：`base_link.STL`、`gripper_slider_link1.STL`、`gripper_slider_link2.STL` |
 | launch 文件 | `display.launch.py`、`ros2_control.launch.py`、`gazebo.launch.py` |
 | 环境要求 | Ubuntu 22.04 上的 ROS 2 Humble，系统 Python 3.10 |
 
-两个关节轴向相反，因此**取相同符号**才会让两指对称运动。随货模型的手指单侧行程默认值是 `0.042726` m。
+夹爪只有一台电机、一套传动，因此只有 `gripper_opening_joint` 可命令。它的取值是开口
+行程，单位米（`0` 闭合，`0.085452` 全开），每指按 `q = -0.5 × opening + stroke` 跟随。
+随货模型的手指单侧行程默认值是 `0.042726` m。
 
 ```bash
 ros2 launch litegrip_description display.launch.py

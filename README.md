@@ -62,14 +62,16 @@ python3 -m pip install .
 | Item | Value |
 | --- | --- |
 | Robot description | `litegrip_description/urdf/litegrip_description.urdf.xacro` — the single source of truth |
-| Links | `base_footprint` (root), `base_link`, `gripper_slider_link1` (right), `gripper_slider_link2` (left) |
-| Joints | `gripper_slide_joint_right` (`+X`), `gripper_slide_joint_left` (`-X`), both prismatic |
+| Links | `base_footprint` (root), `base_link`, `gripper_opening_link` (master), `gripper_slider_link1` (right), `gripper_slider_link2` (left) |
+| Joints | `gripper_opening_joint` (master, `+X`, prismatic); `gripper_slide_joint_right` (`+X`) and `gripper_slide_joint_left` (`-X`) are its `<mimic>` followers |
 | Meshes | Three STL files: `base_link.STL`, `gripper_slider_link1.STL`, `gripper_slider_link2.STL` |
 | Launch files | `display.launch.py`, `ros2_control.launch.py`, `gazebo.launch.py` |
 | Requirements | ROS 2 Humble on Ubuntu 22.04, system Python 3.10 |
 
-The two joints take the **same sign** to move the fingers symmetrically, because their axes point
-opposite ways. The shipped model's per-finger travel default is `0.042726` m.
+The gripper has one motor and one transmission, so only `gripper_opening_joint` is
+commandable. Its value is the opening travel in metres (`0` closed, `0.085452` fully open),
+and each finger follows as `q = -0.5 × opening + stroke`. The shipped per-finger travel
+default is `0.042726` m.
 
 ```bash
 ros2 launch litegrip_description display.launch.py
