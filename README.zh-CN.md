@@ -69,7 +69,7 @@ ros2 launch litegrip_description display.launch.py
 
 加 `stroke:=` 可覆盖模型使用的手指单侧行程。
 
-各仿真环境用的就是这套模型，而不是另建一套：PyBullet 加载上游 xacro 并在加载时做归一化处理，MuJoCo 的 MJCF 也建立在这三个 STL 网格之上。
+各仿真环境并不都直接加载这个文件：PyBullet 随包提供的是更早的两指独立模型快照 —— 它的 URDF 导入器忽略 `<mimic>`，单总控关节形式在那里无法联动；MuJoCo 的 MJCF 则建立在这三个 STL 网格之上。
 
 ## 4. API 使用例程
 

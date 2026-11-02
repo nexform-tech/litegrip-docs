@@ -79,8 +79,9 @@ ros2 launch litegrip_description display.launch.py
 
 Add `stroke:=` to override the per-finger travel used by the model.
 
-The simulations use this model rather than a separate one. PyBullet loads the upstream xacro and
-normalises it at load time, and MuJoCo builds its MJCF on the same three STL meshes.
+The simulations do not all load this file directly. PyBullet ships a frozen snapshot of an earlier
+two-independent-finger model, because its URDF importer ignores `<mimic>` and the single-master form
+would not articulate there. MuJoCo builds its MJCF on the same three STL meshes.
 
 ## 4. API examples
 
