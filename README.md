@@ -56,20 +56,23 @@ python3 -m pip install .
 
 ## 3. Mechanical model
 
-[litegrip-description](https://github.com/nexform-tech/litegrip-description) holds the model, and it is released:
-**v1.0.0**. The ROS 2 package is named `litegrip_description`.
+[litegrip-description](https://github.com/nexform-tech/litegrip-description) holds the model. This
+section documents the single-opening-joint form, which is introduced in **v2.0.0**; v1.0.0 still
+contains the earlier two-independent-finger model. The ROS 2 package is named `litegrip_description`.
 
 | Item | Value |
 | --- | --- |
 | Robot description | `litegrip_description/urdf/litegrip_description.urdf.xacro` — the single source of truth |
-| Links | `base_footprint` (root), `base_link`, `gripper_slider_link1` (right), `gripper_slider_link2` (left) |
-| Joints | `gripper_slide_joint_right` (`+X`), `gripper_slide_joint_left` (`-X`), both prismatic |
+| Links | `base_footprint` (root), `base_link`, `gripper_opening_link` (master), `gripper_slider_link1` (right), `gripper_slider_link2` (left) |
+| Joints | `gripper_opening_joint` (master, `+X`, prismatic); `gripper_slide_joint_right` (`+X`) and `gripper_slide_joint_left` (`-X`) are its `<mimic>` followers |
 | Meshes | Three STL files: `base_link.STL`, `gripper_slider_link1.STL`, `gripper_slider_link2.STL` |
 | Launch files | `display.launch.py`, `ros2_control.launch.py`, `gazebo.launch.py` |
 | Requirements | ROS 2 Humble on Ubuntu 22.04, system Python 3.10 |
 
-The two joints take the **same sign** to move the fingers symmetrically, because their axes point
-opposite ways. The shipped model's per-finger travel default is `0.042726` m.
+The gripper has one motor and one transmission, so only `gripper_opening_joint` is
+commandable. Its value is the opening travel in metres (`0` closed, `0.085452` fully open),
+and each finger follows as `q = -0.5 × opening + stroke`. The shipped per-finger travel
+default is `0.042726` m.
 
 ```bash
 ros2 launch litegrip_description display.launch.py
@@ -77,8 +80,9 @@ ros2 launch litegrip_description display.launch.py
 
 Add `stroke:=` to override the per-finger travel used by the model.
 
-The simulations use this model rather than a separate one. PyBullet loads the upstream xacro and
-normalises it at load time, and MuJoCo builds its MJCF on the same three STL meshes.
+The simulations do not all load this file directly. PyBullet ships a frozen snapshot of an earlier
+two-independent-finger model, because its URDF importer ignores `<mimic>` and the single-master form
+would not articulate there. MuJoCo builds its MJCF on the same three STL meshes.
 
 ## 4. API examples
 
