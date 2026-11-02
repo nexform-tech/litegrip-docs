@@ -56,8 +56,9 @@ python3 -m pip install .
 
 ## 3. Mechanical model
 
-[litegrip-description](https://github.com/nexform-tech/litegrip-description) holds the model, and it is released:
-**v1.0.0**. The ROS 2 package is named `litegrip_description`.
+[litegrip-description](https://github.com/nexform-tech/litegrip-description) holds the model. This
+section documents the single-opening-joint form, which is introduced in **v2.0.0**; v1.0.0 still
+contains the earlier two-independent-finger model. The ROS 2 package is named `litegrip_description`.
 
 | Item | Value |
 | --- | --- |

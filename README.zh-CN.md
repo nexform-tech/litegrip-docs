@@ -48,7 +48,7 @@ python3 -m pip install .
 
 ## 3. 机械模型
 
-模型在 [litegrip-description](https://github.com/nexform-tech/litegrip-description)，且已经发布：**v1.0.0**。ROS 2 包名为 `litegrip_description`。
+模型在 [litegrip-description](https://github.com/nexform-tech/litegrip-description)。本节描述的是单总控关节形式，它从 **v2.0.0** 起提供；v1.0.0 仍是更早的两指独立关节模型。ROS 2 包名为 `litegrip_description`。
 
 | 项目 | 取值 |
 | --- | --- |
