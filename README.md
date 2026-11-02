@@ -31,12 +31,12 @@ The documentation covers:
 | Python SDK | [litegrip-python](https://github.com/nexform-tech/litegrip-python) | v1.1.0 | 2026-10-14 |
 | C++ SDK | [litegrip-cpp](https://github.com/nexform-tech/litegrip-cpp) | v1.0.9 | 2026-10-14 |
 | ROS 1 driver | [litegrip-ros1](https://github.com/nexform-tech/litegrip-ros1) | Not released | — |
-| ROS 2 driver | [litegrip-ros2](https://github.com/nexform-tech/litegrip-ros2) | v0.1.0 | 2026-09-28 |
-| MoveIt 2 configuration | [litegrip-moveit2](https://github.com/nexform-tech/litegrip-moveit2) | v0.1.1 | 2026-10-12 |
+| ROS 2 driver | [litegrip-ros2](https://github.com/nexform-tech/litegrip-ros2) | v0.1.1 | 2026-11-02 |
+| MoveIt 2 configuration | [litegrip-moveit2](https://github.com/nexform-tech/litegrip-moveit2) | v0.1.2 | 2026-11-02 |
 | MuJoCo simulation | [litegrip-mujoco](https://github.com/nexform-tech/litegrip-mujoco) | v0.5.0 | 2026-10-10 |
 | PyBullet simulation | [litegrip-pybullet](https://github.com/nexform-tech/litegrip-pybullet) | v0.6.1 | 2026-10-10 |
 | Isaac Sim simulation | [litegrip-isaacsim](https://github.com/nexform-tech/litegrip-isaacsim) | v1.0.1 | 2026-09-27 |
-| URDF model | [litegrip-description](https://github.com/nexform-tech/litegrip-description) | v1.0.0 | 2026-10-12 |
+| URDF model | [litegrip-description](https://github.com/nexform-tech/litegrip-description) | v2.0.0 | 2026-11-02 |
 | Host application | [litegrip-studio](https://github.com/nexform-tech/litegrip-studio) | v0.12.4 | 2026-10-14 |
 
 **One row says "Not released".** `litegrip-ros1` is a placeholder: the repository is initialized, but
