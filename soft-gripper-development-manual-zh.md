@@ -1,10 +1,35 @@
+---
+revisions:
+  - version: V1.1.1
+    date: 2026-11-03
+    note: 补齐修订记录
+  - version: V1.1.0
+    date: 2026-10-22
+    note: 面向终端用户重构全文，合并 SDK 与生态章节
+  - version: V1.0.2
+    date: 2026-10-19
+    note: 按 SDK 源码校正接口与参数，补全 C++ / ROS 2 安装说明
+  - version: V1.0.1
+    date: 2026-09-28
+    note: 有效行程全线改为 87.000 mm 并写明 SDK 位置与卡尺实际开口两个口径；补全示例脚本清单；修复配置表残缺行与换算写法
+  - version: V1.0.0
+    date: 2026-09-24
+    note: 新建 LiteGrip 软件开发手册框架
+  - version: V0.3.0
+    date: 2026-09-23
+    note: 整机拆装后按新零点重记全部角度数值
+  - version: V0.2.0
+    date: 2026-09-18
+    note: 按卡尺实测结果修正全部毫米数值
+---
+
 # 前言
 
 [English](soft-gripper-development-manual.md) | [简体中文](soft-gripper-development-manual-zh.md)
 
 LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，有效行程 85.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），配套 Python SDK、C++ SDK、ROS 2 驱动与仿真模型。
 
-本文档面向集成工程师，说明 SDK 的安装与调用、抓取与标定的用法、异常处理、生态组件，以及精简的 CAN 协议附录。产品规格、安全须知与选型方法见[《产品手册》](product-manual-zh.md)。
+本文档面向集成工程师，说明 SDK 的安装与调用、抓取与标定的用法、异常处理、生态组件，以及精简的 CAN 协议附录。产品规格、安全须知与选型方法见[《产品手册》](product-manual-zh.md)；安装、接线与首次运行见[《使用教程》](user-guide-zh.md)。
 
 ## 目录
 
