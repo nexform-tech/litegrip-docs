@@ -1,10 +1,35 @@
+---
+revisions:
+  - version: V1.1.1
+    date: 2026-11-03
+    note: Restored the revision history and linked the usage tutorial from the preface
+  - version: V1.1.0
+    date: 2026-10-22
+    note: Restructured the manual for end users and added the gripper and holder assembly drawings
+  - version: V1.0.2
+    date: 2026-10-19
+    note: Corrected the specifications against the SDK sources, settled the effective stroke at 85.000 mm, and removed unmeasured specifications
+  - version: V1.0.1
+    date: 2026-09-28
+    note: Effective stroke changed to 87.000 mm throughout, with both conventions spelled out (SDK position and actual caliper aperture); position resolution changed to 0.0242 mm per this unit's calibration coefficient; torque reading cap corrected; table structure and numbering fixed
+  - version: V1.0.0
+    date: 2026-09-24
+    note: Created the LiteGrip Product Manual skeleton
+  - version: V0.3.0
+    date: 2026-09-23
+    note: Re-recorded all angle values against the new zero point after full teardown and reassembly
+  - version: V0.2.0
+    date: 2026-09-18
+    note: Corrected all millimeter values against caliper measurements
+---
+
 # Preface
 
 [English](product-manual.md) | [简体中文](product-manual-zh.md)
 
 LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and education, AI robot development, and lightweight industrial automation, with an effective stroke of 85.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps) and ships with a Python SDK and factory calibration data. It suits grasping, transferring, loading and unloading, sorting, and algorithm validation.
 
-This manual covers the product's appearance, technical specifications, safety notices, selection guidance, and installation and daily use. For the software interface, parameters, and communication protocol, see the Software Development Manual.
+This manual covers the product's appearance, technical specifications, safety notices, selection guidance, and installation and daily use. Start with the Usage Tutorial to install, wire, and run the gripper for the first time. For the software interface, parameters, and communication protocol, see the Software Development Manual.
 
 ## Contents
 

@@ -1,10 +1,35 @@
+---
+revisions:
+  - version: V1.1.1
+    date: 2026-11-03
+    note: 补齐修订记录；前言增加《使用教程》入口
+  - version: V1.1.0
+    date: 2026-10-22
+    note: 面向终端用户重构全文，补充夹爪与夹持器装配图
+  - version: V1.0.2
+    date: 2026-10-19
+    note: 按 SDK 源码校正规格，有效行程统一为 85.000 mm，删除未测量项
+  - version: V1.0.1
+    date: 2026-09-28
+    note: 有效行程全线改为 87.000 mm 并写明 SDK 位置与卡尺实际开口两个口径；位置分辨率按本机标定系数改为 0.0242 mm；力矩读数上限修正；修复表格结构与编号
+  - version: V1.0.0
+    date: 2026-09-24
+    note: 新建 LiteGrip 产品手册框架
+  - version: V0.3.0
+    date: 2026-09-23
+    note: 整机拆装后按新零点重记全部角度数值
+  - version: V0.2.0
+    date: 2026-09-18
+    note: 按卡尺实测结果修正全部毫米数值
+---
+
 # 前言
 
 [English](product-manual.md) | [简体中文](product-manual-zh.md)
 
 LiteGrip 是 NEXFORM ROBOTICS 面向科研教育、AI 机器人开发与轻量级工业自动化场景设计的自适应两指平动夹爪，有效行程 85.000 mm。夹爪通过 USB-CAN 适配器与上位机通信（经典 CAN，1 Mbps），配套 Python SDK 与出厂标定数据，可用于抓取、搬运、上下料、分拣与算法验证等场景。
 
-本手册介绍产品外观、技术规格、安全须知、选型方法以及安装与日常使用。软件接口、参数与通信协议见[《软件开发手册》](soft-gripper-development-manual-zh.md)。
+本手册介绍产品外观、技术规格、安全须知、选型方法以及安装与日常使用。第一次上手请先读[《使用教程》](user-guide-zh.md)，按步骤完成安装、接线与首次运行。软件接口、参数与通信协议见[《软件开发手册》](soft-gripper-development-manual-zh.md)。
 
 ## 目录
 

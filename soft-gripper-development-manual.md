@@ -1,10 +1,35 @@
+---
+revisions:
+  - version: V1.1.1
+    date: 2026-11-03
+    note: Restored the revision history
+  - version: V1.1.0
+    date: 2026-10-22
+    note: Restructured the manual for end users and merged the SDK and ecosystem chapters
+  - version: V1.0.2
+    date: 2026-10-19
+    note: Corrected the interface and parameter descriptions against the SDK sources and completed the C++ / ROS 2 installation notes
+  - version: V1.0.1
+    date: 2026-09-28
+    note: Effective stroke changed to 87.000 mm throughout, with both conventions spelled out (SDK position and actual caliper aperture); example script list completed; incomplete rows in the configuration table and the conversion notation fixed
+  - version: V1.0.0
+    date: 2026-09-24
+    note: Created the LiteGrip Software Development Manual skeleton
+  - version: V0.3.0
+    date: 2026-09-23
+    note: Re-recorded all angle values against the new zero point after full teardown and reassembly
+  - version: V0.2.0
+    date: 2026-09-18
+    note: Corrected all millimeter values against caliper measurements
+---
+
 # Preface
 
 [English](soft-gripper-development-manual.md) | [简体中文](soft-gripper-development-manual-zh.md)
 
 LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and education, AI robot development, and lightweight industrial automation, with an effective stroke of 85.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps) and ships with a Python SDK, a C++ SDK, a ROS 2 driver, and simulation models.
 
-This manual is for integration engineers. It covers installing and calling the SDK, grasping and calibration, exception handling, the ecosystem components, and a condensed CAN protocol appendix. Product specifications, safety notices, and selection guidance are in the [Product Manual](product-manual.md).
+This manual is for integration engineers. It covers installing and calling the SDK, grasping and calibration, exception handling, the ecosystem components, and a condensed CAN protocol appendix. Product specifications, safety notices, and selection guidance are in the [Product Manual](product-manual.md); installation, wiring, and the first run are in the Usage Tutorial.
 
 ## Contents
 
