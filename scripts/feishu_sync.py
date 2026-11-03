@@ -169,6 +169,46 @@ def replace_file(token, document_id, block_id, file_token):
         raise SystemExit(f"绑定文件块失败：{result.get('msg')}")
 
 
+def get_block(token, document_id, block_id):
+    result = api(
+        "GET", f"/docx/v1/documents/{document_id}/blocks/{block_id}", token=token
+    )
+    if result.get("code") != 0:
+        raise SystemExit(f"读文件块 {block_id} 失败：{result.get('msg')}")
+    return result["data"]["block"]
+
+
+def download_media(token, file_token):
+    req = urllib.request.Request(BASE + f"/drive/v1/medias/{file_token}/download")
+    req.add_header("Authorization", "Bearer " + token)
+    try:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            return resp.read()
+    except urllib.error.HTTPError as exc:
+        raise SystemExit(
+            f"下载媒体 {file_token} 失败：HTTP {exc.code} "
+            f"{exc.read().decode('utf-8', 'replace')}"
+        ) from exc
+
+
+def verify_sync(token, document_id, block_id, file_token, path):
+    """确认文件块真的换成了刚上传的文件。
+
+    replace_file 返回 code 0 并不保证块已经更新：出现过流水线报成功、飞书里仍是
+    旧文件的情况。只看返回值会让这种失败悄悄过去，所以换完再读回来比对一遍。
+    """
+    block = get_block(token, document_id, block_id)
+    actual = (block.get("file") or {}).get("token")
+    if actual != file_token:
+        raise SystemExit(
+            f"文件块 {block_id} 仍指向 {actual}，没有换成新上传的 {file_token}"
+        )
+    with open(path, "rb") as f:
+        expected = f.read()
+    if download_media(token, file_token) != expected:
+        raise SystemExit(f"{path} 上传后的内容与仓库里的不一致")
+
+
 def main():
     app_id = os.environ.get("FEISHU_APP_ID", "").strip()
     app_secret = os.environ.get("FEISHU_APP_SECRET", "").strip()
@@ -195,6 +235,7 @@ def main():
                 )
             file_token = upload_media(token, document_id, block_id, path, name)
             replace_file(token, document_id, block_id, file_token)
+            verify_sync(token, document_id, block_id, file_token, path)
             print(f"已同步 {name} -> {document_id}/{block_id}")
 
 
