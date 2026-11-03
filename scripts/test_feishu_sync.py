@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""feishu_sync.py 里不碰网络的那部分：块匹配和 multipart 拼装。"""
+"""feishu_sync.py 里不碰网络的那部分：块匹配、配置项和 multipart 拼装。"""
+import json
 import os
 import sys
 import unittest
@@ -31,6 +32,34 @@ class FindFileBlockTest(unittest.TestCase):
     def test_returns_none_when_missing(self):
         blocks = [{"block_id": "b", "block_type": 23, "file": {"name": "a.pdf"}}]
         self.assertIsNone(feishu_sync.find_file_block(blocks, "missing.pdf"))
+
+
+class FileEntryTest(unittest.TestCase):
+    def test_string_entry_uses_same_path_and_name(self):
+        self.assertEqual(feishu_sync.file_entry("a.pdf"), ("a.pdf", "a.pdf"))
+
+    def test_mapping_entry_separates_path_and_name(self):
+        self.assertEqual(
+            feishu_sync.file_entry({"path": "drawings/a.pdf", "name": "图纸.pdf"}),
+            ("drawings/a.pdf", "图纸.pdf"),
+        )
+
+    def test_mapping_entry_requires_both_keys(self):
+        with self.assertRaises(KeyError):
+            feishu_sync.file_entry({"path": "drawings/a.pdf"})
+
+
+class ConfigTest(unittest.TestCase):
+    def test_every_configured_file_exists_in_repo(self):
+        with open(feishu_sync.CONFIG, encoding="utf-8") as f:
+            config = json.load(f)
+        for doc in config["documents"]:
+            for entry in doc["files"]:
+                rel_path, _ = feishu_sync.file_entry(entry)
+                self.assertTrue(
+                    os.path.isfile(os.path.join(feishu_sync.ROOT, rel_path)),
+                    rel_path,
+                )
 
 
 class MultipartTest(unittest.TestCase):
