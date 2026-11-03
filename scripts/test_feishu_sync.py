@@ -79,6 +79,34 @@ class MultipartTest(unittest.TestCase):
         self.assertIn('filename="upload.pdf"', body.decode("utf-8"))
 
 
+class VerifySyncTest(unittest.TestCase):
+    def setUp(self):
+        self.path = os.path.join(feishu_sync.ROOT, "scripts", "feishu_sync.json")
+
+    def test_accepts_matching_token_and_bytes(self):
+        data = open(self.path, "rb").read()
+        with mock.patch.object(
+            feishu_sync, "get_block", return_value={"file": {"token": "new"}}
+        ), mock.patch.object(feishu_sync, "download_media", return_value=data):
+            feishu_sync.verify_sync("t", "doc", "blk", "new", self.path)
+
+    def test_rejects_block_still_pointing_at_old_token(self):
+        with mock.patch.object(
+            feishu_sync, "get_block", return_value={"file": {"token": "old"}}
+        ), mock.patch.object(feishu_sync, "download_media", return_value=b""):
+            with self.assertRaises(SystemExit) as caught:
+                feishu_sync.verify_sync("t", "doc", "blk", "new", self.path)
+        self.assertIn("old", str(caught.exception))
+
+    def test_rejects_media_that_differs_from_repo_file(self):
+        with mock.patch.object(
+            feishu_sync, "get_block", return_value={"file": {"token": "new"}}
+        ), mock.patch.object(feishu_sync, "download_media", return_value=b"stale"):
+            with self.assertRaises(SystemExit) as caught:
+                feishu_sync.verify_sync("t", "doc", "blk", "new", self.path)
+        self.assertIn("不一致", str(caught.exception))
+
+
 class TenantTokenTest(unittest.TestCase):
     def test_token_request_carries_no_authorization_header(self):
         """取 token 的请求本身不能带 Authorization，否则拼字符串时拿到 None。"""
