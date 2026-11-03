@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Fail when a handbook table of contents no longer matches its headings.
 
-Every handbook opens with a contents section — `## Contents` in the English
+A handbook may carry a contents section — `## Contents` in the English
 editions, `## 目录` in the Chinese ones — that links to each top-level and
-second-level heading. Renaming a heading without updating that list breaks the
-links silently, which no other check in this repository would notice.
+second-level heading. The printed manuals do not: the PDF template generates
+their table of contents from the headings, so a hand-written list would appear
+twice. When a handbook does carry one, renaming a heading without updating that
+list breaks the links silently, which no other check in this repository would
+notice.
 
 The same holds for the cross-references in the prose: a `](#section)` link
 inside one handbook, and a `](other-handbook.md#section)` link that jumps from
-the product manual into the development manual. Both are checked here.
+the product manual into the development manual. Both are checked whether or not
+the handbook has a contents section.
 
 The anchor slugs use GitHub's algorithm. It was verified entry by entry against
 `github-slugger`, the package GitHub itself uses, across every heading of the
@@ -29,7 +33,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 # Each entry pairs the English edition with its Chinese edition. Both are
-# checked, and both must carry the same number of contents entries.
+# checked, and when both carry a contents section they must list the same
+# number of entries.
 HANDBOOKS = [
     ("product-manual.md", "product-manual-zh.md"),
     ("soft-gripper-development-manual.md", "soft-gripper-development-manual-zh.md"),
@@ -84,12 +89,14 @@ def check(name):
     problems = []
 
     contents = [h for h in headings if h[2].lower() in CONTENTS_TITLES]
-    if len(contents) != 1:
-        return 0, [f"{name}: expected exactly one contents heading, found {len(contents)}"]
+    if len(contents) > 1:
+        return 0, [f"{name}: expected at most one contents heading, found {len(contents)}"]
 
-    contents_at = contents[0][0]
-    following = [h for h in headings if h[0] > contents_at]
-    ends_at = following[0][0] if following else len(lines)
+    # A handbook without a contents section still gets its prose links checked.
+    has_contents = bool(contents)
+    contents_at = contents[0][0] if has_contents else -1
+    following = [h for h in headings if h[0] > contents_at] if has_contents else []
+    ends_at = (following[0][0] if following else len(lines)) if has_contents else -1
 
     links = []
     for line in lines[contents_at:ends_at]:
@@ -140,6 +147,9 @@ def check(name):
                     f"{name}:{index + 1}: the link {text!r} points at "
                     f"{target}#{slug}, which is not a heading there"
                 )
+
+    if not has_contents:
+        return 0, problems
 
     # Every top-level heading except the document title, and every second-level
     # heading except the contents heading itself, must appear in the list. An

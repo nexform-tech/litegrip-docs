@@ -1,26 +1,15 @@
 ---
 revisions:
-  - version: V1.1.1
+  - version: V1.1.2
     date: 2026-11-03
-    note: Restored the revision history
+    note: Removed the in-document contents list and condensed the revision history
   - version: V1.1.0
     date: 2026-10-22
     note: Restructured the manual for end users and merged the SDK and ecosystem chapters
-  - version: V1.0.2
-    date: 2026-10-19
-    note: Corrected the interface and parameter descriptions against the SDK sources and completed the C++ / ROS 2 installation notes
-  - version: V1.0.1
-    date: 2026-09-28
-    note: Effective stroke changed to 87.000 mm throughout, with both conventions spelled out (SDK position and actual caliper aperture); example script list completed; incomplete rows in the configuration table and the conversion notation fixed
   - version: V1.0.0
     date: 2026-09-24
     note: Created the LiteGrip Software Development Manual skeleton
-  - version: V0.3.0
-    date: 2026-09-23
-    note: Re-recorded all angle values against the new zero point after full teardown and reassembly
-  - version: V0.2.0
-    date: 2026-09-18
-    note: Corrected all millimeter values against caliper measurements
+
 ---
 
 # Preface
@@ -30,42 +19,6 @@ revisions:
 LiteGrip is an adaptive two-finger parallel gripper from NEXFORM ROBOTICS, designed for research and education, AI robot development, and lightweight industrial automation, with an effective stroke of 85.000 mm. The gripper communicates with the host computer through a USB-CAN adapter (classic CAN, 1 Mbps) and ships with a Python SDK, a C++ SDK, a ROS 2 driver, and simulation models.
 
 This manual is for integration engineers. It covers installing and calling the SDK, grasping and calibration, exception handling, the ecosystem components, and a condensed CAN protocol appendix. Product specifications, safety notices, and selection guidance are in the [Product Manual](product-manual.md); installation, wiring, and the first run are in the Usage Tutorial.
-
-## Contents
-
-- [Software components and dependencies](#software-components-and-dependencies)
-- [Units](#units)
-- [Safety](#safety)
-- [SDK guide](#sdk-guide)
-  - [1. Install the SDK](#1-install-the-sdk)
-  - [2. Configure the CAN interface](#2-configure-the-can-interface)
-  - [3. Connect 24 V power](#3-connect-24-v-power)
-  - [4. Load the calibration](#4-load-the-calibration)
-  - [5. Minimal example](#5-minimal-example)
-  - [6. Enable and handle faults](#6-enable-and-handle-faults)
-  - [7. Motion control](#7-motion-control)
-  - [8. Grasping and force control](#8-grasping-and-force-control)
-  - [9. Read state](#9-read-state)
-  - [10. Hand-guiding](#10-hand-guiding)
-  - [11. Calibration](#11-calibration)
-  - [12. Exceptions and error handling](#12-exceptions-and-error-handling)
-- [Other languages and ecosystem](#other-languages-and-ecosystem)
-  - [C++ SDK](#c-sdk)
-  - [ROS 2 and MoveIt 2](#ros-2-and-moveit-2)
-  - [Simulation](#simulation)
-  - [Host application (LiteGrip Studio)](#host-application-litegrip-studio)
-  - [Teleoperation and trajectory replay](#teleoperation-and-trajectory-replay)
-- [FAQ](#faq)
-  - [Q&A](#qa)
-- [Appendix: CAN protocol](#appendix-can-protocol)
-  - [Physical layer and frame types](#physical-layer-and-frame-types)
-  - [MIT control frame](#mit-control-frame)
-  - [Status and error codes](#status-and-error-codes)
-  - [Parameter registers](#parameter-registers)
-  - [Communication timing](#communication-timing)
-- [Appendix: Connection troubleshooting](#appendix-connection-troubleshooting)
-  - [CAN interface configuration](#can-interface-configuration)
-  - [Connection troubleshooting](#connection-troubleshooting)
 
 ## Software components and dependencies
 
@@ -113,7 +66,7 @@ The SDK position `p` and "aperture" in this manual are the same quantity: 0 at f
 
 This section states the safety principles you must follow when driving the gripper from software. The gripper grips, collides, and releases when power is lost; users must fully recognize the operating risks and use the SDK only after training.
 
-### Severity labels
+### Safety symbols
 
 This manual uses the severity labels below; the graphical symbols on the product are the authority:
 
@@ -156,7 +109,7 @@ Users must judge through the risk assessment whether a hazard is an unacceptable
 
 # SDK guide
 
-## 1. Install the SDK
+## Install the SDK
 
 The Python SDK is not published to PyPI, so installation starts from a checkout:
 
@@ -177,7 +130,7 @@ PYTHONPATH=/path/to/litegrip-python/src python3 your_script.py
 
 > **Note**: On the machine that drives the real gripper, use `pip install .`, not `pip install -e .`. An editable install points the interpreter at your working copy, and one `git checkout` there silently changes what the machine actually runs.
 
-## 2. Configure the CAN interface
+## Configure the CAN interface
 
 The interface must exist, be up, and use classic CAN at 1 Mbps. Configuring it needs root or `CAP_NET_ADMIN`.
 
@@ -200,13 +153,13 @@ sudo ip link set up vcan0
 
 There is no motor on a virtual bus, so `enable()` exhausts its retries and returns `ok=False`. That is expected behavior.
 
-## 3. Connect 24 V power
+## Connect 24 V power
 
 The motor needs 24 V to produce torque. Connect it before the first motion command.
 
 > **Note**: CAN communication is powered independently by the USB-CAN adapter, so without 24 V you can still read state and parameters, but the motor reports an undervoltage fault (`ERR = 0x9`) and does not respond to motion commands. When "the command was sent but nothing moves", check 24 V first.
 
-## 4. Load the calibration
+## Load the calibration
 
 The travel endpoints differ from unit to unit, so the calibration must be loaded before motion:
 
@@ -220,7 +173,7 @@ gripper.enable()
 
 Pass `path=` to `load_calibration()` to read a file for your unit, or `template="normal"` / `template="reverse"` to declare the mounting direction. The two cannot be passed together.
 
-## 5. Minimal example
+## Minimal example
 
 ```python
 from litegrip import LiteGrip
@@ -246,7 +199,7 @@ Run `python3 first_move.py`. With an object grasped the typical output is `True 
 
 > **Note**: A successful powered grasp reports `stalled=True` and `reached=False`; do not expect `reached=True`. Grasping an object and closing on the endpoint look identical to the stall test, so read `get_position()` to tell them apart: a free close stops at the closed endpoint, a grasp stops before it.
 
-## 6. Enable and handle faults
+## Enable and handle faults
 
 ```python
 gripper.enable()        # enable and wait for feedback confirmation
@@ -266,7 +219,7 @@ gripper.stop()          # send one zero-torque frame
 
 > **Note**: `stop()` is not a safety-rated stop. It sends one frame and returns; the motor stays enabled and accepts the next command. A real emergency stop cuts the 24 V supply with a hardware switch.
 
-## 7. Motion control
+## Motion control
 
 | Method | Effect |
 |------|------|
@@ -293,7 +246,7 @@ with LiteGrip(channel="can0", can_id=0x08) as gripper:
 
 > **Note**: `duration` only sets how long the frame sequence lasts; it is not a speed limit. To limit speed, use `move_at_speed()` or `move_at_speed_rad()`.
 
-## 8. Grasping and force control
+## Grasping and force control
 
 ```python
 grasp(force_n=None, hold_s=0.0, *, progress=None) -> GraspResult
@@ -316,7 +269,7 @@ grasp(force_n=None, hold_s=0.0, *, progress=None) -> GraspResult
 
 > **Note**: There is no "apply a force at the current position" interface, deliberately. A hold frame carries no position error, so with nothing between the fingers the torque is the only force and the mechanism accelerates. Use `grasp()` when you need force.
 
-## 9. Read state
+## Read state
 
 ```python
 state = gripper.get_state(wait=True)
@@ -340,7 +293,7 @@ print(state.position_mm, state.temperature_mos, hex(state.error_code))
 
 > **Note**: `force_n` is derived as `torque_nm × 10`, and 10.0 is a nominal coefficient, not a calibrated value. `aperture_mm` is already the full aperture and equals `position_mm`; do not multiply it by 2.
 
-## 10. Hand-guiding
+## Hand-guiding
 
 ```python
 gripper.enter_zero_gravity()       # the gripper goes soft and can be pushed by hand
@@ -354,7 +307,7 @@ gripper.exit_zero_gravity()        # hold the current position
 
 > **Note**: `enter_zero_gravity(duration=...)` only stops sending frames when the timer ends; it does not return to position holding on its own. The controller must keep sending frames, or the driver disables itself after 0.4 s.
 
-## 11. Calibration
+## Calibration
 
 | Method | Drive | How limits are detected | Needs a person |
 |------|--------|---------------|--------|
@@ -375,7 +328,7 @@ Save the result with `save_calibration()`:
 
 > **Note**: `load_calibration()` does not validate the contents; it only handles a missing file and a JSON parse failure. Recalibrate after replacing the gripper, motor, or fingers, and after a collision or overload.
 
-## 12. Exceptions and error handling
+## Exceptions and error handling
 
 | Exception | Trigger |
 |------|----------|
@@ -493,39 +446,55 @@ The Python SDK provides `GripperTeleop` for leader-follower teleoperation; the w
 
 ## Q&A
 
-Q: Which platforms does the SDK support? A: Linux only, with SocketCAN support in the kernel. The SDK uses only the Python standard library and has no runtime dependencies.
+**Q: Which platforms does the SDK support?**
+A: Linux only, with SocketCAN support in the kernel. The SDK uses only the Python standard library and has no runtime dependencies.
 
-Q: Does `pip install litegrip` work? A: No. The package is not published to PyPI; clone the repository and run `python3 -m pip install .`.
+**Q: Does `pip install litegrip` work?**
+A: No. The package is not published to PyPI; clone the repository and run `python3 -m pip install .`.
 
-Q: Why is `fd off` required when configuring CAN? A: This product uses classic CAN. A CAN FD configuration fails to communicate at all, and the symptom looks like "no 24 V connected".
+**Q: Why is `fd off` required when configuring CAN?**
+A: This product uses classic CAN. A CAN FD configuration fails to communicate at all, and the symptom looks like "no 24 V connected".
 
-Q: Why do I see nothing when I listen on the bus? A: Feedback is polled; the motor answers only after it receives a frame from the host, so you must send one first.
+**Q: Why do I see nothing when I listen on the bus?**
+A: Feedback is polled; the motor answers only after it receives a frame from the host, so you must send one first.
 
-Q: What do I do after connecting? A: Call `load_calibration()`, then `enable()`. `connect()` does not load the calibration by itself.
+**Q: What do I do after connecting?**
+A: Call `load_calibration()`, then `enable()`. `connect()` does not load the calibration by itself.
 
-Q: `open()` raises `CommandError` saying the configuration is not calibrated. What is wrong? A: The calibration was not loaded. Call `load_calibration()`, or run `zero()`.
+**Q: `open()` raises `CommandError` saying the configuration is not calibrated. What is wrong?**
+A: The calibration was not loaded. Call `load_calibration()`, or run `zero()`.
 
-Q: `goto()` goes to the wrong place without raising. Why? A: A target beyond the calibrated endpoints is silently clamped; that is by design. To reject out-of-range targets, compare against the endpoints first.
+**Q: `goto()` goes to the wrong place without raising. Why?**
+A: A target beyond the calibrated endpoints is silently clamped; that is by design. To reject out-of-range targets, compare against the endpoints first.
 
-Q: A function returned `True`. Does that mean it worked? A: It depends on the function. `enable()` returning true is backed by a feedback frame; `disable()` returning true only means the command was sent; a motion call returning means the frames were sent, and you must read `get_state()` to know whether the mechanism arrived.
+**Q: A function returned `True`. Does that mean it worked?**
+A: It depends on the function. `enable()` returning true is backed by a feedback frame; `disable()` returning true only means the command was sent; a motion call returning means the frames were sent, and you must read `get_state()` to know whether the mechanism arrived.
 
-Q: Why does `close()` not stop at the force I set? A: `close()` has no force parameter. Only `grasp()` takes `force_n`, and that parameter has never been force-calibrated.
+**Q: Why does `close()` not stop at the force I set?**
+A: `close()` has no force parameter. Only `grasp()` takes `force_n`, and that parameter has never been force-calibrated.
 
-Q: `grasp()` returned `stalled=True`. Did it grasp something? A: Not necessarily. A free close onto the endpoint also stalls. Read `get_position()`: a free close stops at the closed endpoint, a grasp stops before it.
+**Q: `grasp()` returned `stalled=True`. Did it grasp something?**
+A: Not necessarily. A free close onto the endpoint also stalls. Read `get_position()`: a free close stops at the closed endpoint, a grasp stops before it.
 
-Q: `grasp()` returned `ok=False`. Is it broken? A: Not necessarily. `ok` only reports whether the hold phase finished normally; read it together with `reached`, `stalled`, and `cycles`.
+**Q: `grasp()` returned `ok=False`. Is it broken?**
+A: Not necessarily. `ok` only reports whether the hold phase finished normally; read it together with `reached`, `stalled`, and `cycles`.
 
-Q: The fingers stopped outside the stroke. What now? A: Bring them back with `goto_rad()`, which clamps the target to the calibrated endpoints. If the mechanism is jammed, clear the interference by hand rather than applying more force.
+**Q: The fingers stopped outside the stroke. What now?**
+A: Bring them back with `goto_rad()`, which clamps the target to the calibrated endpoints. If the mechanism is jammed, clear the interference by hand rather than applying more force.
 
-Q: If I let go in zero gravity mode, will the fingers drop? A: They will move. Zero gravity mode applies no torque; call `exit_zero_gravity()` to hold the position.
+**Q: If I let go in zero gravity mode, will the fingers drop?**
+A: They will move. Zero gravity mode applies no torque; call `exit_zero_gravity()` to hold the position.
 
-Q: The position reading does not match a caliper measurement. A: A fixed percentage difference means the calibration scale is wrong; a fixed offset means you measured from a different reference face. The reading is the aperture between the two fingertips.
+**Q: The position reading does not match a caliper measurement.**
+A: A fixed percentage difference means the calibration scale is wrong; a fixed offset means you measured from a different reference face. The reading is the aperture between the two fingertips.
 
-Q: Can several hosts control the gripper at once? A: No. Keep a single CAN master and exclude concurrency in software. To drive several grippers from one process, use `litegrip.can.controller`.
+**Q: Can several hosts control the gripper at once?**
+A: No. Keep a single CAN master and exclude concurrency in software. To drive several grippers from one process, use `litegrip.can.controller`.
 
-Q: What is the technical support channel? A: The NEXFORM ROBOTICS technical team. Contact details are in the documents shipped with the product and through the sales channel.
+**Q: What is the technical support channel?**
+A: The NEXFORM ROBOTICS technical team. Contact details are in the documents shipped with the product and through the sales channel.
 
-# Appendix: CAN protocol
+# Appendix 1: CAN protocol
 
 This appendix is for integration engineers who do not use the SDK, or who implement control in another language. The SDK's clamping and zero-torque behavior do not apply automatically: range checks, speed limits, the emergency-stop loop, and periodic frame transmission are yours to implement.
 
@@ -708,7 +677,7 @@ Examples: reading `TIMEOUT` (RID 9) sends `08 00 33 09 00 00 00 00`; writing `TI
 
 > **Note**: The driver disables itself if it receives no frame from the host for 0.4 s, so the controller must keep transmitting periodically.
 
-# Appendix: Connection troubleshooting
+# Appendix 2: Connection troubleshooting
 
 ## CAN interface configuration
 
