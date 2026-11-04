@@ -8,7 +8,9 @@
         "LiteGrip Studio操作手册.pdf",
         "LiteGrip使用教程.pdf",
         { "path": "drawings/gripper-assembly.pdf", "name": "LiteGrip夹爪装配体图纸.pdf" },
-        { "path": "drawings/holder-assembly.pdf", "name": "LiteGrip夹持器装配体图纸.pdf" }
+        { "path": "drawings/holder-assembly.pdf", "name": "LiteGrip夹持器装配体图纸.pdf" },
+        { "path": "drawings/gripper-dimensions.pdf", "name": "夹爪尺寸.PDF" },
+        { "path": "drawings/holder-dimensions.pdf", "name": "夹持器尺寸.PDF" }
       ]
     }
   ]
