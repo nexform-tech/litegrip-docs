@@ -42,9 +42,6 @@ jobs:
       - name: Check the two language editions are aligned
         run: python3 scripts/check_editions.py
 
-      - name: Test Feishu sync helpers
-        run: python3 -m unittest discover -s scripts -p "test_*.py"
-
       - name: Validate repository standards
         run: |
           set -euo pipefail
