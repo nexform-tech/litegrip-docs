@@ -1,0 +1,35 @@
+# Tells nexform-guide that a document changed, so it re-copies files/ and
+# republishes the documentation center to Feishu.
+#
+# A repository's own GITHUB_TOKEN cannot send events to another repository, so
+# this workflow mints a short-lived token from the NEXFORM documentation App
+# (installed on nexform-guide only) and uses it for the dispatch.
+name: Notify docs center
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.pdf"
+      - "**/*.PDF"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/create-github-app-token@v3
+        id: app
+        with:
+          app-id: ${{ secrets.NEXFORM_APP_ID }}
+          private-key: ${{ secrets.NEXFORM_APP_PRIVATE_KEY }}
+          owner: nexform-tech
+          repositories: nexform-guide
+
+      - name: Ask nexform-guide to sync its files
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: gh api --method POST repos/nexform-tech/nexform-guide/dispatches -f event_type=docs-updated
