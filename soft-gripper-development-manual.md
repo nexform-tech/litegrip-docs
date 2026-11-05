@@ -1,5 +1,8 @@
 ---
 revisions:
+  - version: V1.2.0
+    date: 2026-11-05
+    note: Revised the hardware list and the physical-layer notes for the shipped configuration; the terminator is built in
   - version: V1.1.2
     date: 2026-11-03
     note: Removed the in-document contents list and condensed the revision history
@@ -41,7 +44,7 @@ The Python SDK runs in this environment:
 | Python | 3.8 or later |
 | Runtime dependencies | None; only the Python standard library and SocketCAN |
 | Optional dependency | `eclipse-zenoh>=1.0`, only for the zenoh teleoperation link |
-| Hardware | USB-CAN adapter, 24 V supply, one 120 Ω resistor at each end of the bus |
+| Hardware | USB-CAN adapter, 24 V supply (120 Ω terminator built into the gripper) |
 
 The Python SDK and the simulation packages are not published to PyPI; install them from a source checkout.
 
@@ -506,7 +509,7 @@ This appendix is for integration engineers who do not use the SDK, or who implem
 | Baud rate | 1 Mbps |
 | CAN FD | Not used; must be disabled |
 | Data frame length | 8 bytes |
-| Terminating resistors | 120 Ω at each end of the bus |
+| Terminating resistor | 120 Ω built in; no external terminator needed |
 
 | Name | Value | Meaning |
 |------|------|------|
@@ -730,7 +733,7 @@ The expected feedback has `ERR = 0x9` (undervoltage). Receiving `0x9` proves the
 | No feedback frames at all | Listening without sending | Feedback is polled; send a frame first |
 | | Command frames sent to `0x7FF` | Command and MIT frames must go to `0x08` |
 | | CAN FD not disabled | Reconfigure with `fd off` |
-| | Terminating resistors missing | Fit one 120 Ω at each end of the bus |
+| | Extra terminating resistor added externally | Remove the external terminator; the gripper has 120 Ω built in |
 | Enable has no effect, `ERR` stays `0x0` | 24 V not connected | Connect 24 V |
 | | Using a stale feedback frame | Judge only from a frame that arrives after the command |
 | Feedback `ERR = 0x9` | 24 V not connected or too low | Check the supply |

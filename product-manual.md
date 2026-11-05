@@ -1,5 +1,8 @@
 ---
 revisions:
+  - version: V1.3.0
+    date: 2026-11-05
+    note: Revised the hardware list and wiring for the shipped configuration; the terminator is built in
   - version: V1.2.0
     date: 2026-11-03
     note: Restructured the chapters; installation and wiring now point to the Usage Tutorial
@@ -21,12 +24,12 @@ This manual covers the product's appearance, technical specifications, safety no
 
 ## Hardware components
 
-The standard delivery and the equipment you need to provide are listed below; the sales configuration list is the final authority:
+The shipped configuration and the equipment you need to provide are listed below; the sales configuration list is the final authority:
 
 | Category | Item | Description |
 |------|------|------|
-| Standard delivery | LiteGrip gripper body | Includes the drive motor, transmission, fingers, and fingertips |
-| Standard delivery | CAN terminating resistors | One 120 Ω resistor at each end of the bus |
+| As shipped | LiteGrip gripper | Includes the drive motor, transmission, fingers, and fingertips; the 120 Ω terminator is built in |
+| As shipped | Holder | Ships together with the gripper; not included when the gripper is ordered on its own |
 | You provide | 24 V DC power supply | Powers the motor; the motor outputs no torque when it is not connected |
 | You provide | USB-CAN adapter | Connects the gripper to the host computer |
 | You provide | Host computer | Linux with SocketCAN support in the kernel |
@@ -162,9 +165,9 @@ The LiteGrip external interface consists of three sets of connections, and apply
 |------|------|
 | 24 V power supply | Powers the motor; the motor produces no torque when it is not connected |
 | CAN bus | Connects the gripper to the USB-CAN adapter, including CAN_H and CAN_L |
-| CAN terminating resistors | One 120 Ω resistor at each physical end of the bus |
+| CAN terminating resistor | Built into the gripper; no external terminator is needed when wiring |
 
-> **Note**: The terminating resistors are mandatory. The typical symptom when they are missing is communication that drops in and out.
+> **Note**: The gripper carries a built-in 120 Ω terminator. Do not add another one on the bus; duplicate termination makes communication drop in and out.
 
 ### Power supply
 
@@ -186,7 +189,7 @@ Estimating from the peak current of 16.5 A, the 24 V supply should be at least 4
 | Protocol | Classic CAN (CAN 2.0, not CAN FD) |
 | Baud rate | 1 Mbps |
 | Data frame length | 8 bytes |
-| Terminating resistors | 120 Ω at each end of the bus |
+| Terminating resistor | 120 Ω built in; no external terminator needed |
 | Control mode | MIT |
 | Communication timeout protection | Automatically disables after 0.4 s |
 
@@ -320,7 +323,7 @@ After any of the following, you must recalibrate:
 | Symptom | Possible cause | Remedy |
 |------|----------|----------|
 | No communication at all | CAN interface not configured, or CAN FD not disabled | Reconfigure the interface with CAN FD disabled |
-| | Terminating resistors missing | Fit one 120 Ω at each end of the bus |
+| | Extra terminating resistor added externally | Remove the external terminator; the gripper has 120 Ω built in |
 | | Loose cable | Check the connectors |
 | Status can be read but the gripper does not move | The 24 V supply is not connected | Connect 24 V (the most common cause) |
 | | Motor not enabled | Check whether the enable step succeeded |
@@ -345,7 +348,7 @@ After any of the following, you must recalibrate:
 | 0xA | Overcurrent | Check for binding and for an excessive load |
 | 0xB | MOS overtemperature | Stop and let it cool |
 | 0xC | Coil overtemperature | Stop and let it cool |
-| 0xD | Communication loss | Check the CAN wiring and the terminating resistors |
+| 0xD | Communication loss | Check the CAN wiring and the connectors |
 | 0xE | Overload | Reduce the load |
 
 > **Note**: 0x8 and 0x9 are very easy to mix up. The correct order is 8 = overvoltage, 9 = undervoltage.
