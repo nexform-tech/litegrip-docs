@@ -1,5 +1,8 @@
 ---
 revisions:
+  - version: V1.0.3
+    date: 2026-11-05
+    note: Each figure now sits with the text it illustrates instead of on a page of its own
   - version: V1.0.2
     date: 2026-11-04
     note: Removed placeholder figures and revised the wiring instructions to match the actual shipped configuration and built-in terminator
