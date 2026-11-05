@@ -15,7 +15,7 @@ simulation environments, models and host application, and records the latest rel
 
 | Manual | Reader | Contents |
 | --- | --- | --- |
-| [Usage Tutorial](user-guide-zh.md) (Chinese) | First-time users | Unboxing, mechanical installation, wiring, host install and first run |
+| [Usage Tutorial](user-guide.md) (English) · [使用教程](user-guide-zh.md) (Chinese) | First-time users | Unboxing, mechanical installation, wiring, host install and first run |
 | [Product Manual](product-manual.md) | Users and installers | Specifications, electrical interface, installation, maintenance, troubleshooting |
 | [Software Development Manual](soft-gripper-development-manual.md) | Integrators | SDK installation and usage, ecosystem integration, and a condensed CAN protocol appendix |
 
