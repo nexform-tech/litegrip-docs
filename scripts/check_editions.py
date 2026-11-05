@@ -28,6 +28,7 @@ REPO = Path(__file__).resolve().parent.parent
 HANDBOOKS = [
     ("product-manual.md", "product-manual-zh.md"),
     ("soft-gripper-development-manual.md", "soft-gripper-development-manual-zh.md"),
+    ("user-guide.md", "user-guide-zh.md"),
 ]
 
 HEADING = re.compile(r"^(#{1,6}) ")
