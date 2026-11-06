@@ -97,6 +97,32 @@ yourself, the Software Development Manual lists what to record before you contac
 from the NEXFORM ROBOTICS technical team; the contact details are on the documents shipped with the
 product and through your sales channel.
 
+## Publishing to the documentation centre
+
+Every PDF here — manuals, drawings and dimension sheets alike — is also published
+to the NEXFORM documentation centre in Feishu. Nobody uploads it by hand: merging
+a PDF to `main` is the whole procedure, and the site catches up within minutes.
+
+1. A push to `main` that touches `*.pdf` starts
+   `.github/workflows/notify-docs.yml`. It mints a short-lived token for the
+   `nexform-docs-dispatch` GitHub App and sends a `docs-updated` dispatch to
+   [nexform-guide](https://github.com/nexform-tech/nexform-guide).
+2. `nexform-guide` runs `scripts/sync_files.py`, which downloads each file its
+   `files.yaml` lists from the repository that owns it, and commits only the
+   copies whose bytes changed.
+3. Its `Publish` workflow compares the SHA-256 of every Feishu file block with
+   the local copy, re-uploads the ones that differ, then reads the document back
+   and verifies it.
+
+A nightly run at 03:00 UTC repeats step 2, so a missed dispatch costs at most a
+day. No Feishu credentials are needed on your side: the jobs that talk to Feishu
+run in CI.
+
+The file name is the join key between the two repositories. Replacing a PDF in
+place needs nothing else; adding, renaming or removing one needs a pull request
+in `nexform-guide` that changes `files.yaml` and the page link in the same round,
+or the site keeps serving the old file.
+
 ## Repository standards
 
 This repository follows the shared NEXFORM ROBOTICS repository standards: the agent operating rules
