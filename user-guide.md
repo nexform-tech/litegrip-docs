@@ -106,10 +106,6 @@ The external interfaces of LiteGrip consist of two sets of connections: 24 V pow
 
 **Step 3**: Connect the USB-CAN adapter to the host computer with a USB cable.
 
-[Figure to be added] Wiring diagram: 24 V power supply, CAN_H / CAN_L and USB-CAN adapter (120 Ω terminator built into the gripper)
-
-<!-- 图片就位后，把上面这一行换成图片，文件放在 images/fig04-wiring.png -->
-
 ## Power-up sequence
 
 1. Confirm the wiring is correct and there is no short circuit.
